@@ -113,6 +113,32 @@ OPENROUTER_API_KEY=sk-or-...
 OPENROUTER_MODEL=openai/gpt-5.4
 ```
 
+## Deploying to Railway
+
+The repo root has a multi-stage `Dockerfile` (builds the React frontend, then
+serves it and the API from one FastAPI process) and a `railway.json` with the
+healthcheck preconfigured. One Railway service runs everything: the public
+content API, the admin studio (`/admin`), and uploads.
+
+1. **Create the service** — Railway → New Project → *Deploy from GitHub repo*
+   → pick this repo. Railway detects the root `Dockerfile` automatically.
+2. **Set variables** (service → Variables):
+   - `DATABASE_URL` — the Supabase session-pooler URL (see Notes below)
+   - `OPENROUTER_API_KEY` — for the AI writer
+   - `OPENROUTER_MODEL` — optional, defaults to `openai/gpt-5.4`
+   - `CORS_ORIGINS` — e.g. `https://www.forgesop.com,https://forgesop.com`
+   (don't set `PORT` — Railway injects it and the Dockerfile honors it)
+3. **Attach a volume** (service → right-click → Attach Volume) mounted at
+   `/app/uploads` so uploaded images/files survive redeploys.
+4. **Domain** — service → Settings → Networking: generate a Railway domain or
+   attach a custom one (e.g. `api.forgesop.com` via CNAME).
+5. Deploy. Health is checked at `/api/health`; tables are created in Postgres
+   automatically on first boot.
+
+The website (www.forgesop.com) then consumes `https://<your-domain>/api/...`,
+and editors use `https://<your-domain>/admin`. Remember image URLs in API
+responses are relative (`/uploads/...`) — prefix them with the API domain.
+
 ## Notes
 
 - There is no authentication yet — add auth before exposing the admin API

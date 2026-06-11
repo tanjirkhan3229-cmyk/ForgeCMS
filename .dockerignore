@@ -1,0 +1,13 @@
+.git/
+.claude/
+**/.env
+backend/.venv/
+backend/forge.db
+backend/uploads/
+frontend/node_modules/
+frontend/dist/
+**/__pycache__/
+**/*.pyc
+.DS_Store
+*.log
+README.md

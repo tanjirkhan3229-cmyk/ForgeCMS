@@ -86,6 +86,27 @@ def health():
     return {"status": "ok"}
 
 
+def mount_spa(app: FastAPI):
+    """Serve the built admin/public frontend (SPA) when a dist dir is present.
+
+    Registered after all API routes, so /api/* and /uploads/* keep priority.
+    Unknown paths fall back to index.html for client-side routing.
+    """
+    from fastapi.responses import FileResponse
+
+    dist = os.environ.get("FRONTEND_DIST", "static")
+    index = os.path.join(dist, "index.html")
+    if not os.path.isfile(index):
+        return
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    def spa(full_path: str):
+        candidate = os.path.join(dist, full_path)
+        if full_path and os.path.isfile(candidate):
+            return FileResponse(candidate)
+        return FileResponse(index)
+
+
 # The health route and admin routes must be registered before the public
 # router: its /api/{module} path would otherwise capture them, and FastAPI
 # matches routes in declaration order.
@@ -98,3 +119,5 @@ app.include_router(settings.router)
 app.include_router(knowledge.router)
 app.include_router(admin.router)
 app.include_router(public.router)
+
+mount_spa(app)
