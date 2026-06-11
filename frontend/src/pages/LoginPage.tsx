@@ -30,8 +30,51 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 px-4">
-      <div className="w-full max-w-sm">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-zinc-50 px-4">
+      {/* Decorative geometric backdrop */}
+      <div aria-hidden className="pointer-events-none absolute inset-0">
+        {/* soft gradient blobs */}
+        <div className="absolute -top-32 -left-32 h-96 w-96 rounded-full bg-indigo-200/40 blur-3xl" />
+        <div className="absolute -right-40 -bottom-40 h-[28rem] w-[28rem] rounded-full bg-emerald-100/50 blur-3xl" />
+        <div className="absolute top-1/3 right-1/4 h-64 w-64 rounded-full bg-amber-100/40 blur-3xl" />
+
+        {/* outlined hexagons echoing the logo */}
+        <Hexagon
+          size={300}
+          strokeWidth={0.5}
+          className="absolute -top-16 right-[12%] rotate-12 text-indigo-500/10"
+        />
+        <Hexagon
+          size={180}
+          strokeWidth={0.7}
+          className="absolute bottom-[8%] left-[10%] -rotate-12 text-zinc-500/10"
+        />
+        <Hexagon
+          size={90}
+          strokeWidth={1}
+          className="absolute top-[18%] left-[22%] rotate-45 text-emerald-500/15"
+        />
+
+        {/* rings and rotated squares */}
+        <div className="absolute top-[12%] right-[28%] h-24 w-24 rounded-full border border-zinc-400/15" />
+        <div className="absolute bottom-[20%] right-[14%] h-32 w-32 rounded-full border-2 border-indigo-400/10" />
+        <div className="absolute top-[60%] left-[16%] h-16 w-16 rotate-45 rounded-lg border border-amber-500/15" />
+        <div className="absolute top-[8%] left-[45%] h-10 w-10 rotate-12 rounded-md border border-indigo-400/20" />
+        <div className="absolute right-[8%] bottom-[42%] h-3 w-3 rotate-45 bg-indigo-400/15" />
+        <div className="absolute bottom-[12%] left-[38%] h-2.5 w-2.5 rounded-full bg-emerald-500/20" />
+        <div className="absolute top-[30%] left-[8%] h-2 w-2 rounded-full bg-zinc-500/20" />
+
+        {/* faint dot grid, masked toward the center */}
+        <div
+          className="absolute inset-0 opacity-[0.35] [mask-image:radial-gradient(ellipse_at_center,transparent_30%,black_85%)]"
+          style={{
+            backgroundImage: 'radial-gradient(circle, rgb(161 161 170 / 0.35) 1px, transparent 1px)',
+            backgroundSize: '28px 28px',
+          }}
+        />
+      </div>
+
+      <div className="relative w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center gap-3">
           <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-zinc-900 text-white">
             <Hexagon size={22} strokeWidth={2.5} />
@@ -44,7 +87,7 @@ export default function LoginPage() {
 
         <form
           onSubmit={onSubmit}
-          className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm"
+          className="rounded-2xl border border-zinc-200/80 bg-white/80 p-6 shadow-xl shadow-zinc-200/50 backdrop-blur-md"
         >
           <label className="mb-1.5 block text-[13px] font-medium text-zinc-700">Email</label>
           <div className="relative mb-4">
