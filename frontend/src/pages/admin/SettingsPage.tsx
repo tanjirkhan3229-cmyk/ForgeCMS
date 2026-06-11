@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import { Camera, Check, Loader2, User } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
+import { Camera, Check, Loader2, User, Users } from 'lucide-react'
 import type { Profile } from '../../lib/api'
 import { formatDate, settingsApi, uploadFile } from '../../lib/api'
+import UserManagement from './UserManagement'
 
 const EMPTY: Omit<Profile, 'updated_at'> = {
   display_name: '',
@@ -11,7 +13,47 @@ const EMPTY: Omit<Profile, 'updated_at'> = {
   avatar_url: '',
 }
 
+const TABS = [
+  { key: 'profile', label: 'Profile Settings', icon: User },
+  { key: 'users', label: 'User Management', icon: Users },
+] as const
+
 export default function SettingsPage() {
+  const [params, setParams] = useSearchParams()
+  const tab = params.get('tab') === 'users' ? 'users' : 'profile'
+  const setTab = (key: 'profile' | 'users') =>
+    setParams(key === 'profile' ? {} : { tab: key }, { replace: true })
+
+  return (
+    <div className="px-10 py-8">
+      <div className="mb-6">
+        <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
+        <p className="mt-1 text-sm text-zinc-500">
+          Manage your profile and your team's access.
+        </p>
+      </div>
+
+      <div className="mb-6 flex gap-1 rounded-lg bg-zinc-100 p-1" style={{ width: 'fit-content' }}>
+        {TABS.map(({ key, label, icon: Icon }) => (
+          <button
+            key={key}
+            onClick={() => setTab(key)}
+            className={`inline-flex items-center gap-1.5 rounded-md px-3.5 py-1.5 text-sm font-medium transition-colors ${
+              tab === key ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-500 hover:text-zinc-900'
+            }`}
+          >
+            <Icon size={14} />
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'profile' ? <ProfileSettings /> : <UserManagement />}
+    </div>
+  )
+}
+
+function ProfileSettings() {
   const [form, setForm] = useState(EMPTY)
   const [updatedAt, setUpdatedAt] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -74,12 +116,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="px-10 py-8">
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
-        <p className="mt-1 text-sm text-zinc-500">Manage your user profile.</p>
-      </div>
-
+    <div>
       {error && (
         <div className="mb-4 max-w-2xl rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700">
           {error}

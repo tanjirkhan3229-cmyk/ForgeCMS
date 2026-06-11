@@ -66,6 +66,34 @@ export interface Profile {
   updated_at: string | null
 }
 
+export type Role = 'admin' | 'editor' | 'author' | 'viewer'
+export type UserStatus = 'active' | 'invited' | 'suspended'
+
+export interface CmsUser {
+  id: number
+  name: string
+  email: string
+  role: Role
+  status: UserStatus
+  avatar_url: string
+  created_at: string
+  updated_at: string
+}
+
+export const ROLE_LABELS: Record<Role, string> = {
+  admin: 'Admin',
+  editor: 'Editor',
+  author: 'Author',
+  viewer: 'Viewer',
+}
+
+export const ROLE_DESCRIPTIONS: Record<Role, string> = {
+  admin: 'Full access — content, media, users and settings',
+  editor: 'Create, edit, publish and schedule all content',
+  author: 'Create and edit their own drafts',
+  viewer: 'Read-only access to the studio',
+}
+
 export const MODULE_LABELS: Record<Module, string> = {
   blogs: 'Blogs',
   news: 'News',
@@ -196,6 +224,13 @@ export const settingsApi = {
   getProfile: () => request<Profile>('/api/admin/settings/profile'),
   updateProfile: (data: Omit<Profile, 'updated_at'>) =>
     request<Profile>('/api/admin/settings/profile', { method: 'PUT', body: JSON.stringify(data) }),
+  listUsers: () => request<CmsUser[]>('/api/admin/settings/users'),
+  createUser: (data: { name: string; email: string; role: Role; status?: UserStatus }) =>
+    request<CmsUser>('/api/admin/settings/users', { method: 'POST', body: JSON.stringify(data) }),
+  updateUser: (id: number, data: Partial<Pick<CmsUser, 'name' | 'email' | 'role' | 'status' | 'avatar_url'>>) =>
+    request<CmsUser>(`/api/admin/settings/users/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteUser: (id: number) =>
+    request<void>(`/api/admin/settings/users/${id}`, { method: 'DELETE' }),
 }
 
 export async function uploadFile(file: File) {
