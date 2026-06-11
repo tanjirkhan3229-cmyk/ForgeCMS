@@ -2,8 +2,8 @@
 
 A headless CMS with a FastAPI backend and a React (Vite) frontend. Four content
 modules — **Blogs**, **News**, **Downloadable Resources**, and **FAQ Articles** —
-each with drafts, published content, scheduled publishing, and a full-featured
-TipTap rich text editor.
+each with drafts, published content, scheduled publishing, a full-featured TipTap
+rich text editor, and a knowledge-grounded AI writer powered by OpenRouter.
 
 ## Stack
 
@@ -42,6 +42,8 @@ npm run dev
 | Route | Purpose |
 | --- | --- |
 | `GET/POST /api/admin/{module}` | List (filter by `status`, `search`) / create. `module` ∈ `blogs, news, resources, faqs` |
+| `POST /api/ai/generate` | AI writer — `{prompt, module, tone, length, use_knowledge}` → draft JSON + `sources` via OpenRouter |
+| `GET/POST /api/admin/knowledge` · `GET/DELETE /api/admin/knowledge/{id}` · `POST .../reanalyze` | Knowledge base — upload .md/.txt docs the AI grounds its drafts in |
 | `GET/PUT/DELETE /api/admin/{module}/{id}` | Read / update / delete one item |
 | `POST /api/admin/{module}/{id}/publish` · `/unpublish` · `/schedule` · `/duplicate` | Status transitions (`schedule` takes `{"publish_at": "<UTC ISO>"}`) |
 | `GET /api/admin/{module}/stats` | Draft/scheduled/published counts |
@@ -71,10 +73,10 @@ head as the title tag, description meta and a JSON-LD script), status
 ## Admin navigation
 
 Each content module is a dropdown in the sidebar: **Create New** (opens the
-editor), **Drafts** and **Published** (3×3 tile grids with pagination and
-search), and **Scheduled**, which appears automatically whenever that module
-has scheduled items. The Workspace section holds the **Media Library** (browse,
-upload, copy URL, delete all uploaded files) and **Settings**, which has two
+editor), and **Drafts**, **Published** and **Scheduled** (3×3 tile grids with
+pagination and search). The Workspace section holds the **Knowledge Base** (the
+AI's grounding documents), the **Media Library** (browse, upload, copy URL,
+delete all uploaded files) and **Settings**, which has two
 tabs: **Profile Settings** (name, email, title, bio, avatar) and **User
 Management** (add/remove team members, change roles — Admin, Editor, Author,
 Viewer — and toggle status between active, invited and suspended). Roles are
@@ -87,6 +89,29 @@ highlight, sub/superscript, text color, font family, text alignment,
 bullet/ordered/task lists, blockquotes, syntax-highlighted code blocks, tables
 (with row/column controls), links, image upload, YouTube embeds, horizontal
 rules, undo/redo, clear formatting, and a word/character counter.
+
+## AI writer & knowledge base
+
+Each editor sidebar has an **AI Writer** tab: describe the article, pick a tone
+and length, and the backend asks an OpenRouter-hosted model (default
+`openai/gpt-5.4`) for a structured draft — body HTML, title, excerpt, SEO meta
+fields and tags. The draft fills the editor and any empty fields; existing
+content is never overwritten without confirmation.
+
+The **Knowledge Base** (Workspace section) is the AI's brain: upload `.md` or
+`.txt` documents — product docs, fact sheets, style guides — and each one is
+analyzed (summary + keywords) on upload. When generating, the writer selects
+the documents most relevant to your prompt and grounds the draft in them,
+reporting which sources it used. Toggle "Use knowledge base" in the AI tab to
+opt out per generation.
+
+Configure credentials in `backend/.env` (gitignored — see
+`backend/.env.example`):
+
+```
+OPENROUTER_API_KEY=sk-or-...
+OPENROUTER_MODEL=openai/gpt-5.4
+```
 
 ## Notes
 

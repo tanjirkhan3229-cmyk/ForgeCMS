@@ -7,7 +7,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import MODULES, STATUSES, ContentItem
+from ..models import MODULE_PATTERN, MODULES, STATUSES, ContentItem
 from ..schemas import (
     ContentCreate,
     ContentList,
@@ -19,7 +19,7 @@ from ..schemas import (
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
-MODULE_PATH = Path(..., pattern="^(blogs|news|resources|faqs)$")
+MODULE_PATH = Path(..., pattern=MODULE_PATTERN)
 
 
 def slugify(text: str) -> str:

@@ -7,12 +7,12 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import ContentItem
+from ..models import MODULE_PATTERN, ContentItem
 from ..schemas import ContentList, ContentOut
 
 router = APIRouter(prefix="/api", tags=["public"])
 
-MODULE_PATH = Path(..., pattern="^(blogs|news|resources|faqs)$")
+MODULE_PATH = Path(..., pattern=MODULE_PATTERN)
 
 
 def published(db: Session, module: str):
