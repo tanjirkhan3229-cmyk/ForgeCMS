@@ -13,6 +13,29 @@ from .scheduler import scheduler_loop
 Base.metadata.create_all(bind=engine)
 
 
+def migrate_schema():
+    """Add columns that create_all won't add to pre-existing tables."""
+    from sqlalchemy import inspect, text
+
+    added = {
+        "content_items": {
+            "meta_title": "VARCHAR(300) DEFAULT '' NOT NULL",
+            "meta_description": "TEXT DEFAULT '' NOT NULL",
+            "schema_code": "TEXT DEFAULT '' NOT NULL",
+        }
+    }
+    inspector = inspect(engine)
+    with engine.begin() as conn:
+        for table, columns in added.items():
+            existing = {c["name"] for c in inspector.get_columns(table)}
+            for name, ddl in columns.items():
+                if name not in existing:
+                    conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {name} {ddl}"))
+
+
+migrate_schema()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     task = asyncio.create_task(scheduler_loop())

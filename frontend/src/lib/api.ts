@@ -13,6 +13,9 @@ export interface ContentItem {
   category: string
   tags: string[]
   author: string
+  meta_title: string
+  meta_description: string
+  schema_code: string
   status: Status
   publish_at: string | null
   published_at: string | null

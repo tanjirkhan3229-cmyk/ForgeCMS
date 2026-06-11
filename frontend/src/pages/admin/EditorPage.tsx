@@ -11,13 +11,14 @@ import {
   Undo2,
   X,
 } from 'lucide-react'
-import type { ContentItem, Module, Status } from '../../lib/api'
+import type { CmsUser, ContentItem, Module, Status } from '../../lib/api'
 import {
   adminApi,
   formatBytes,
   formatDate,
   localInputToUtc,
   MODULE_SINGULAR,
+  settingsApi,
   uploadFile,
   utcToLocalInput,
 } from '../../lib/api'
@@ -32,6 +33,9 @@ interface FormState {
   tags: string
   author: string
   cover_image: string
+  meta_title: string
+  meta_description: string
+  schema_code: string
   file_url: string
   file_name: string
   file_size: number
@@ -46,6 +50,9 @@ const EMPTY: FormState = {
   tags: '',
   author: '',
   cover_image: '',
+  meta_title: '',
+  meta_description: '',
+  schema_code: '',
   file_url: '',
   file_name: '',
   file_size: 0,
@@ -71,6 +78,11 @@ export default function EditorPage() {
   const contentRef = useRef<{ json: Record<string, unknown>; html: string }>({ json: {}, html: '' })
   const coverInputRef = useRef<HTMLInputElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [users, setUsers] = useState<CmsUser[]>([])
+
+  useEffect(() => {
+    settingsApi.listUsers().then(setUsers).catch(() => setUsers([]))
+  }, [])
 
   useEffect(() => {
     if (isNew) {
@@ -93,6 +105,9 @@ export default function EditorPage() {
           tags: item.tags.join(', '),
           author: item.author,
           cover_image: item.cover_image,
+          meta_title: item.meta_title,
+          meta_description: item.meta_description,
+          schema_code: item.schema_code,
           file_url: item.file_url,
           file_name: item.file_name,
           file_size: item.file_size,
@@ -119,6 +134,9 @@ export default function EditorPage() {
     tags: form.tags.split(',').map((t) => t.trim()).filter(Boolean),
     author: form.author,
     cover_image: form.cover_image,
+    meta_title: form.meta_title,
+    meta_description: form.meta_description,
+    schema_code: form.schema_code,
     content: contentRef.current.json,
     content_html: contentRef.current.html,
     file_url: form.file_url,
@@ -413,17 +431,72 @@ export default function EditorPage() {
               />
             </Field>
             <Field label="Author">
-              <input
+              <select
                 value={form.author}
-                onChange={set('author')}
+                onChange={(e) => setForm((f) => ({ ...f, author: e.target.value }))}
+                className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-400"
+              >
+                <option value="">— No author —</option>
+                {form.author && !users.some((u) => u.name === form.author) && (
+                  <option value={form.author}>{form.author}</option>
+                )}
+                {users.map((u) => (
+                  <option key={u.id} value={u.name}>
+                    {u.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          </Panel>
+
+          <Panel title="SEO">
+            <Field label={`Meta title (${form.meta_title.length}/60)`}>
+              <input
+                value={form.meta_title}
+                onChange={set('meta_title')}
+                placeholder={form.title || 'Defaults to the title'}
                 className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-zinc-400"
               />
+            </Field>
+            <Field label={`Meta description (${form.meta_description.length}/160)`}>
+              <textarea
+                value={form.meta_description}
+                onChange={set('meta_description')}
+                rows={3}
+                placeholder="A short summary shown in search results."
+                className="w-full resize-none rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-zinc-400"
+              />
+            </Field>
+            <Field label="Schema code (JSON-LD)">
+              <textarea
+                value={form.schema_code}
+                onChange={set('schema_code')}
+                rows={5}
+                spellCheck={false}
+                placeholder={'{\n  "@context": "https://schema.org",\n  "@type": "Article"\n}'}
+                className="w-full resize-y rounded-lg border border-zinc-200 px-3 py-2 font-mono text-xs outline-none focus:border-zinc-400"
+              />
+              {schemaInvalid(form.schema_code) && (
+                <p className="mt-1 text-xs text-amber-600">
+                  Heads up: this is not valid JSON — it will be embedded as-is.
+                </p>
+              )}
             </Field>
           </Panel>
         </aside>
       </div>
     </div>
   )
+}
+
+function schemaInvalid(code: string): boolean {
+  if (!code.trim()) return false
+  try {
+    JSON.parse(code)
+    return false
+  } catch {
+    return true
+  }
 }
 
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {

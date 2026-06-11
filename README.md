@@ -62,9 +62,11 @@ time for display and the schedule picker.
 
 One shared `content_items` table across all modules: title, slug (unique per
 module), excerpt, TipTap JSON (`content`) plus rendered HTML (`content_html`),
-cover image, category, tags, author, status (`draft | scheduled | published`),
-`publish_at`, and resource file metadata (`file_url`, `file_name`, `file_size`,
-`file_type`, `download_count`).
+cover image, category, tags, author (picked from workspace users), SEO fields
+(`meta_title`, `meta_description`, `schema_code` — applied to the public page's
+head as the title tag, description meta and a JSON-LD script), status
+(`draft | scheduled | published`), `publish_at`, and resource file metadata
+(`file_url`, `file_name`, `file_size`, `file_type`, `download_count`).
 
 ## Admin navigation
 
