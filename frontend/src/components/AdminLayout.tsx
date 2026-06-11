@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import {
+  BookOpen,
   CalendarClock,
   CheckCircle2,
   ChevronRight,
@@ -23,6 +24,7 @@ const MODULES: { module: Module; icon: typeof FileText }[] = [
   { module: 'news', icon: Newspaper },
   { module: 'resources', icon: FolderDown },
   { module: 'faqs', icon: HelpCircle },
+  { module: 'knowledgebase', icon: BookOpen },
 ]
 
 export default function AdminLayout() {
@@ -64,7 +66,6 @@ export default function AdminLayout() {
           {MODULES.map(({ module, icon: Icon }) => {
             const expanded = open[module]
             const moduleStats = stats?.[module]
-            const hasScheduled = (moduleStats?.scheduled ?? 0) > 0
             return (
               <div key={module} className="mb-0.5">
                 <button
@@ -97,15 +98,13 @@ export default function AdminLayout() {
                       label="Published"
                       count={moduleStats?.published}
                     />
-                    {hasScheduled && (
-                      <SubLink
-                        to={`/admin/${module}/scheduled`}
-                        icon={CalendarClock}
-                        label="Scheduled"
-                        count={moduleStats?.scheduled}
-                        accent
-                      />
-                    )}
+                    <SubLink
+                      to={`/admin/${module}/scheduled`}
+                      icon={CalendarClock}
+                      label="Scheduled"
+                      count={moduleStats?.scheduled}
+                      accent
+                    />
                   </div>
                 )}
               </div>

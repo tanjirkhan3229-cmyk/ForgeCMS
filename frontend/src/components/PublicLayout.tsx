@@ -5,6 +5,7 @@ const LINKS = [
   { to: '/blogs', label: 'Blog' },
   { to: '/news', label: 'News' },
   { to: '/resources', label: 'Resources' },
+  { to: '/knowledgebase', label: 'Knowledge Base' },
   { to: '/faqs', label: 'FAQ' },
 ]
 

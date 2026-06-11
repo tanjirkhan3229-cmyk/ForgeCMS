@@ -26,6 +26,8 @@ export default function App() {
         <Route path="/news/:slug" element={<ContentDetailPage module="news" />} />
         <Route path="/faqs" element={<FaqPage />} />
         <Route path="/resources" element={<ResourcesPage />} />
+        <Route path="/knowledgebase" element={<ContentListPage module="knowledgebase" />} />
+        <Route path="/knowledgebase/:slug" element={<ContentDetailPage module="knowledgebase" />} />
       </Route>
 
       <Route path="/admin" element={<AdminLayout />}>

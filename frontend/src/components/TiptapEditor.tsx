@@ -70,10 +70,11 @@ const FONTS = [
 interface Props {
   initialContent: Record<string, unknown> | null
   onUpdate: (json: Record<string, unknown>, html: string) => void
+  onReady?: (editor: Editor) => void
   placeholder?: string
 }
 
-export default function TiptapEditor({ initialContent, onUpdate, placeholder }: Props) {
+export default function TiptapEditor({ initialContent, onUpdate, onReady, placeholder }: Props) {
   const editor = useEditor({
     extensions: [
       StarterKit.configure({ codeBlock: false }),
@@ -100,6 +101,7 @@ export default function TiptapEditor({ initialContent, onUpdate, placeholder }: 
     ],
     content: initialContent && Object.keys(initialContent).length ? initialContent : '',
     onUpdate: ({ editor }) => onUpdate(editor.getJSON() as Record<string, unknown>, editor.getHTML()),
+    onCreate: ({ editor }) => onReady?.(editor),
   })
 
   if (!editor) return null

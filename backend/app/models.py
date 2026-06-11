@@ -5,7 +5,8 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from .database import Base
 
-MODULES = ("blogs", "news", "resources", "faqs")
+MODULES = ("blogs", "news", "resources", "faqs", "knowledgebase")
+MODULE_PATTERN = "^(" + "|".join(MODULES) + ")$"
 STATUSES = ("draft", "scheduled", "published")
 
 

@@ -2,12 +2,27 @@ import asyncio
 import os
 from contextlib import asynccontextmanager
 
+
+def load_env(path: str = ".env"):
+    """Minimal .env loader; real env vars always win."""
+    if not os.path.isfile(path):
+        return
+    with open(path) as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                key, value = line.split("=", 1)
+                os.environ.setdefault(key.strip(), value.strip())
+
+
+load_env()
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from .database import Base, engine
-from .routers import admin, media, public, settings, uploads
+from .routers import admin, ai, media, public, settings, uploads
 from .scheduler import scheduler_loop
 
 Base.metadata.create_all(bind=engine)
@@ -65,6 +80,7 @@ def health():
 # router: its /api/{module} path would otherwise capture them, and FastAPI
 # matches routes in declaration order.
 app.include_router(uploads.router)
+app.include_router(ai.router)
 # media and settings must precede the admin router: its /api/admin/{module}
 # pattern would otherwise capture (and 422) /api/admin/media and /settings.
 app.include_router(media.router)

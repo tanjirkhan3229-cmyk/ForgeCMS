@@ -1,9 +1,9 @@
 # ForgeCMS
 
-A headless CMS with a FastAPI backend and a React (Vite) frontend. Four content
-modules — **Blogs**, **News**, **Downloadable Resources**, and **FAQ Articles** —
-each with drafts, published content, scheduled publishing, and a full-featured
-TipTap rich text editor.
+A headless CMS with a FastAPI backend and a React (Vite) frontend. Five content
+modules — **Blogs**, **News**, **Downloadable Resources**, **FAQ Articles**, and
+**Knowledge Base** — each with drafts, published content, scheduled publishing,
+a full-featured TipTap rich text editor, and an AI writer powered by OpenRouter.
 
 ## Stack
 
@@ -41,7 +41,8 @@ npm run dev
 
 | Route | Purpose |
 | --- | --- |
-| `GET/POST /api/admin/{module}` | List (filter by `status`, `search`) / create. `module` ∈ `blogs, news, resources, faqs` |
+| `GET/POST /api/admin/{module}` | List (filter by `status`, `search`) / create. `module` ∈ `blogs, news, resources, faqs, knowledgebase` |
+| `POST /api/ai/generate` | AI writer — `{prompt, module, tone, length}` → `{title, excerpt, content_html, meta_title, meta_description, tags}` via OpenRouter |
 | `GET/PUT/DELETE /api/admin/{module}/{id}` | Read / update / delete one item |
 | `POST /api/admin/{module}/{id}/publish` · `/unpublish` · `/schedule` · `/duplicate` | Status transitions (`schedule` takes `{"publish_at": "<UTC ISO>"}`) |
 | `GET /api/admin/{module}/stats` | Draft/scheduled/published counts |
@@ -87,6 +88,22 @@ highlight, sub/superscript, text color, font family, text alignment,
 bullet/ordered/task lists, blockquotes, syntax-highlighted code blocks, tables
 (with row/column controls), links, image upload, YouTube embeds, horizontal
 rules, undo/redo, clear formatting, and a word/character counter.
+
+## AI writer
+
+Each editor has an **AI Writer** panel: describe the article, pick a tone and
+length, and the backend asks an OpenRouter-hosted model (default
+`openai/gpt-5.4`) for a structured draft — body HTML, title, excerpt, SEO meta
+fields and tags. The draft fills the editor and any empty fields; existing
+content is never overwritten without confirmation.
+
+Configure credentials in `backend/.env` (gitignored — see
+`backend/.env.example`):
+
+```
+OPENROUTER_API_KEY=sk-or-...
+OPENROUTER_MODEL=openai/gpt-5.4
+```
 
 ## Notes
 

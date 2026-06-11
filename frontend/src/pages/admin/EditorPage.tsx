@@ -11,7 +11,8 @@ import {
   Undo2,
   X,
 } from 'lucide-react'
-import type { CmsUser, ContentItem, Module, Status } from '../../lib/api'
+import type { Editor } from '@tiptap/react'
+import type { AiDraft, CmsUser, ContentItem, Module, Status } from '../../lib/api'
 import {
   adminApi,
   formatBytes,
@@ -22,6 +23,7 @@ import {
   uploadFile,
   utcToLocalInput,
 } from '../../lib/api'
+import AiWriterPanel from '../../components/AiWriterPanel'
 import StatusBadge from '../../components/StatusBadge'
 import TiptapEditor from '../../components/TiptapEditor'
 
@@ -78,6 +80,7 @@ export default function EditorPage() {
   const contentRef = useRef<{ json: Record<string, unknown>; html: string }>({ json: {}, html: '' })
   const coverInputRef = useRef<HTMLInputElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const editorRef = useRef<Editor | null>(null)
   const [users, setUsers] = useState<CmsUser[]>([])
 
   useEffect(() => {
@@ -181,6 +184,25 @@ export default function EditorPage() {
     } catch (e) {
       setError(`Cover upload failed: ${(e as Error).message}`)
     }
+  }
+
+  const applyDraft = (draft: AiDraft) => {
+    const editor = editorRef.current
+    if (editor) {
+      const hasContent = editor.getText().trim().length > 0
+      if (hasContent && !confirm('Replace the current article body with the AI draft?')) return
+      editor.commands.setContent(draft.content_html, true)
+    } else {
+      contentRef.current = { json: {}, html: draft.content_html }
+    }
+    setForm((f) => ({
+      ...f,
+      title: f.title || draft.title,
+      excerpt: f.excerpt || draft.excerpt,
+      meta_title: f.meta_title || draft.meta_title,
+      meta_description: f.meta_description || draft.meta_description,
+      tags: f.tags || draft.tags.join(', '),
+    }))
   }
 
   const onResourcePicked = async (file: File | undefined) => {
@@ -322,6 +344,9 @@ export default function EditorPage() {
               onUpdate={(json, html) => {
                 contentRef.current = { json, html }
               }}
+              onReady={(editor) => {
+                editorRef.current = editor
+              }}
               placeholder={isFaq ? 'Write the answer…' : 'Start writing…'}
             />
           )}
@@ -329,6 +354,8 @@ export default function EditorPage() {
 
         {/* Sidebar */}
         <aside className="w-80 shrink-0 space-y-5">
+          <AiWriterPanel module={module} onDraft={applyDraft} />
+
           {module === 'resources' && (
             <Panel title="Downloadable file">
               {form.file_url ? (

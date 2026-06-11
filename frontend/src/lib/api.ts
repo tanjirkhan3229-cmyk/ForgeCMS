@@ -1,4 +1,4 @@
-export type Module = 'blogs' | 'news' | 'resources' | 'faqs'
+export type Module = 'blogs' | 'news' | 'resources' | 'faqs' | 'knowledgebase'
 export type Status = 'draft' | 'scheduled' | 'published'
 
 export interface ContentItem {
@@ -102,6 +102,7 @@ export const MODULE_LABELS: Record<Module, string> = {
   news: 'News',
   resources: 'Resources',
   faqs: 'FAQ Articles',
+  knowledgebase: 'Knowledge Base',
 }
 
 export const MODULE_SINGULAR: Record<Module, string> = {
@@ -109,6 +110,7 @@ export const MODULE_SINGULAR: Record<Module, string> = {
   news: 'News Article',
   resources: 'Resource',
   faqs: 'FAQ Article',
+  knowledgebase: 'Knowledge Base Article',
 }
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
@@ -234,6 +236,21 @@ export const settingsApi = {
     request<CmsUser>(`/api/admin/settings/users/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteUser: (id: number) =>
     request<void>(`/api/admin/settings/users/${id}`, { method: 'DELETE' }),
+}
+
+export interface AiDraft {
+  title: string
+  excerpt: string
+  content_html: string
+  meta_title: string
+  meta_description: string
+  tags: string[]
+  model: string
+}
+
+export const aiApi = {
+  generate: (data: { prompt: string; module: Module; tone: string; length: string }) =>
+    request<AiDraft>('/api/ai/generate', { method: 'POST', body: JSON.stringify(data) }),
 }
 
 export async function uploadFile(file: File) {
