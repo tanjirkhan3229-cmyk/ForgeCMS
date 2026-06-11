@@ -11,7 +11,8 @@ import {
   Undo2,
   X,
 } from 'lucide-react'
-import type { CmsUser, ContentItem, Module, Status } from '../../lib/api'
+import type { Editor } from '@tiptap/react'
+import type { AiDraft, CmsUser, ContentItem, Module, Status } from '../../lib/api'
 import {
   adminApi,
   formatBytes,
@@ -22,6 +23,7 @@ import {
   uploadFile,
   utcToLocalInput,
 } from '../../lib/api'
+import AiWriterPanel from '../../components/AiWriterPanel'
 import StatusBadge from '../../components/StatusBadge'
 import TiptapEditor from '../../components/TiptapEditor'
 
@@ -74,10 +76,12 @@ export default function EditorPage() {
   const [savedAt, setSavedAt] = useState<string | null>(null)
   const [initialContent, setInitialContent] = useState<Record<string, unknown> | null>(null)
   const [editorReady, setEditorReady] = useState(isNew)
+  const [sideTab, setSideTab] = useState<'details' | 'seo' | 'ai'>('details')
 
   const contentRef = useRef<{ json: Record<string, unknown>; html: string }>({ json: {}, html: '' })
   const coverInputRef = useRef<HTMLInputElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const editorRef = useRef<Editor | null>(null)
   const [users, setUsers] = useState<CmsUser[]>([])
 
   useEffect(() => {
@@ -181,6 +185,25 @@ export default function EditorPage() {
     } catch (e) {
       setError(`Cover upload failed: ${(e as Error).message}`)
     }
+  }
+
+  const applyDraft = (draft: AiDraft) => {
+    const editor = editorRef.current
+    if (editor) {
+      const hasContent = editor.getText().trim().length > 0
+      if (hasContent && !confirm('Replace the current article body with the AI draft?')) return
+      editor.commands.setContent(draft.content_html, true)
+    } else {
+      contentRef.current = { json: {}, html: draft.content_html }
+    }
+    setForm((f) => ({
+      ...f,
+      title: f.title || draft.title,
+      excerpt: f.excerpt || draft.excerpt,
+      meta_title: f.meta_title || draft.meta_title,
+      meta_description: f.meta_description || draft.meta_description,
+      tags: f.tags || draft.tags.join(', '),
+    }))
   }
 
   const onResourcePicked = async (file: File | undefined) => {
@@ -306,183 +329,225 @@ export default function EditorPage() {
         </div>
       )}
 
-      <div className="flex gap-8">
-        {/* Main column */}
-        <div className="min-w-0 flex-1">
+      <div className="flex items-start gap-6">
+        {/* Main column: title + editor in one card */}
+        <div className="min-w-0 flex-1 overflow-hidden rounded-xl border border-zinc-200 bg-white">
           <input
             value={form.title}
             onChange={set('title')}
             placeholder={isFaq ? 'Question, e.g. “How do I reset my password?”' : 'Title'}
-            className="mb-4 w-full border-0 bg-transparent text-3xl font-bold tracking-tight outline-none placeholder:text-zinc-300"
+            className="w-full border-b border-zinc-100 bg-transparent px-6 py-5 text-2xl font-bold tracking-tight outline-none placeholder:text-zinc-300"
           />
           {editorReady && (
             <TiptapEditor
               key={id ?? 'new'}
+              embedded
               initialContent={initialContent}
               onUpdate={(json, html) => {
                 contentRef.current = { json, html }
+              }}
+              onReady={(editor) => {
+                editorRef.current = editor
               }}
               placeholder={isFaq ? 'Write the answer…' : 'Start writing…'}
             />
           )}
         </div>
 
-        {/* Sidebar */}
-        <aside className="w-80 shrink-0 space-y-5">
-          {module === 'resources' && (
-            <Panel title="Downloadable file">
-              {form.file_url ? (
-                <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2.5">
-                  <div className="truncate text-sm font-medium">{form.file_name}</div>
-                  <div className="mt-0.5 text-xs text-zinc-400">
-                    {formatBytes(form.file_size)} · {form.file_type}
-                  </div>
-                  <button
-                    onClick={() => setForm((f) => ({ ...f, file_url: '', file_name: '', file_size: 0, file_type: '' }))}
-                    className="mt-2 text-xs font-medium text-red-600 hover:underline"
-                  >
-                    Remove file
-                  </button>
-                </div>
-              ) : (
+        {/* Side rail: one card, three tabs */}
+        <aside className="sticky top-6 w-80 shrink-0 self-start rounded-xl border border-zinc-200 bg-white">
+          <div className="border-b border-zinc-100 p-2">
+            <div className="grid grid-cols-3 gap-1 rounded-lg bg-zinc-100 p-1">
+              {(
+                [
+                  { key: 'details', label: 'Details' },
+                  { key: 'seo', label: 'SEO' },
+                  { key: 'ai', label: 'AI Writer' },
+                ] as const
+              ).map((t) => (
                 <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-zinc-300 px-3 py-6 text-sm text-zinc-500 hover:border-zinc-400 hover:text-zinc-700"
+                  key={t.key}
+                  onClick={() => setSideTab(t.key)}
+                  className={`rounded-md px-2 py-1.5 text-xs font-medium transition-colors ${
+                    sideTab === t.key
+                      ? 'bg-white text-zinc-900 shadow-sm'
+                      : 'text-zinc-500 hover:text-zinc-900'
+                  }`}
                 >
-                  <FileUp size={16} /> Upload file
+                  {t.label}
                 </button>
-              )}
-              <input
-                ref={fileInputRef}
-                type="file"
-                className="hidden"
-                onChange={(e) => {
-                  onResourcePicked(e.target.files?.[0])
-                  e.target.value = ''
-                }}
-              />
-            </Panel>
-          )}
+              ))}
+            </div>
+          </div>
 
-          {!isFaq && (
-            <Panel title="Cover image">
-              {form.cover_image ? (
-                <div>
-                  <img src={form.cover_image} alt="Cover" className="w-full rounded-lg object-cover" />
-                  <button
-                    onClick={() => setForm((f) => ({ ...f, cover_image: '' }))}
-                    className="mt-2 text-xs font-medium text-red-600 hover:underline"
-                  >
-                    Remove image
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={() => coverInputRef.current?.click()}
-                  className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-zinc-300 px-3 py-6 text-sm text-zinc-500 hover:border-zinc-400 hover:text-zinc-700"
-                >
-                  <ImagePlus size={16} /> Upload cover
-                </button>
-              )}
-              <input
-                ref={coverInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => {
-                  onCoverPicked(e.target.files?.[0])
-                  e.target.value = ''
-                }}
-              />
-            </Panel>
-          )}
-
-          <Panel title="Details">
-            <Field label="Slug">
-              <input
-                value={form.slug}
-                onChange={set('slug')}
-                placeholder="auto-generated-from-title"
-                className="w-full rounded-lg border border-zinc-200 px-3 py-2 font-mono text-xs outline-none focus:border-zinc-400"
-              />
-            </Field>
-            <Field label={isFaq ? 'Short answer (shown in lists)' : 'Excerpt'}>
-              <textarea
-                value={form.excerpt}
-                onChange={set('excerpt')}
-                rows={3}
-                className="w-full resize-none rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-zinc-400"
-              />
-            </Field>
-            <Field label="Category">
-              <input
-                value={form.category}
-                onChange={set('category')}
-                placeholder={isFaq ? 'e.g. Billing' : 'e.g. Product'}
-                className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-zinc-400"
-              />
-            </Field>
-            <Field label="Tags (comma separated)">
-              <input
-                value={form.tags}
-                onChange={set('tags')}
-                placeholder="react, fastapi"
-                className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-zinc-400"
-              />
-            </Field>
-            <Field label="Author">
-              <select
-                value={form.author}
-                onChange={(e) => setForm((f) => ({ ...f, author: e.target.value }))}
-                className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-400"
-              >
-                <option value="">— No author —</option>
-                {form.author && !users.some((u) => u.name === form.author) && (
-                  <option value={form.author}>{form.author}</option>
+          <div className="max-h-[calc(100vh-12rem)] space-y-4 overflow-y-auto p-4">
+            {sideTab === 'details' && (
+              <>
+                {module === 'resources' && (
+                  <Field label="Downloadable file">
+                    {form.file_url ? (
+                      <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2.5">
+                        <div className="truncate text-sm font-medium">{form.file_name}</div>
+                        <div className="mt-0.5 text-xs text-zinc-400">
+                          {formatBytes(form.file_size)} · {form.file_type}
+                        </div>
+                        <button
+                          onClick={() =>
+                            setForm((f) => ({ ...f, file_url: '', file_name: '', file_size: 0, file_type: '' }))
+                          }
+                          className="mt-2 text-xs font-medium text-red-600 hover:underline"
+                        >
+                          Remove file
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-zinc-300 px-3 py-6 text-sm text-zinc-500 hover:border-zinc-400 hover:text-zinc-700"
+                      >
+                        <FileUp size={16} /> Upload file
+                      </button>
+                    )}
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      className="hidden"
+                      onChange={(e) => {
+                        onResourcePicked(e.target.files?.[0])
+                        e.target.value = ''
+                      }}
+                    />
+                  </Field>
                 )}
-                {users.map((u) => (
-                  <option key={u.id} value={u.name}>
-                    {u.name}
-                  </option>
-                ))}
-              </select>
-            </Field>
-          </Panel>
 
-          <Panel title="SEO">
-            <Field label={`Meta title (${form.meta_title.length}/60)`}>
-              <input
-                value={form.meta_title}
-                onChange={set('meta_title')}
-                placeholder={form.title || 'Defaults to the title'}
-                className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-zinc-400"
-              />
-            </Field>
-            <Field label={`Meta description (${form.meta_description.length}/160)`}>
-              <textarea
-                value={form.meta_description}
-                onChange={set('meta_description')}
-                rows={3}
-                placeholder="A short summary shown in search results."
-                className="w-full resize-none rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-zinc-400"
-              />
-            </Field>
-            <Field label="Schema code (JSON-LD)">
-              <textarea
-                value={form.schema_code}
-                onChange={set('schema_code')}
-                rows={5}
-                spellCheck={false}
-                placeholder={'{\n  "@context": "https://schema.org",\n  "@type": "Article"\n}'}
-                className="w-full resize-y rounded-lg border border-zinc-200 px-3 py-2 font-mono text-xs outline-none focus:border-zinc-400"
-              />
-              {schemaInvalid(form.schema_code) && (
-                <p className="mt-1 text-xs text-amber-600">
-                  Heads up: this is not valid JSON — it will be embedded as-is.
-                </p>
-              )}
-            </Field>
-          </Panel>
+                {!isFaq && (
+                  <Field label="Cover image">
+                    {form.cover_image ? (
+                      <div>
+                        <img
+                          src={form.cover_image}
+                          alt="Cover"
+                          className="aspect-[16/9] w-full rounded-lg object-cover"
+                        />
+                        <button
+                          onClick={() => setForm((f) => ({ ...f, cover_image: '' }))}
+                          className="mt-2 text-xs font-medium text-red-600 hover:underline"
+                        >
+                          Remove image
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => coverInputRef.current?.click()}
+                        className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-zinc-300 px-3 py-6 text-sm text-zinc-500 hover:border-zinc-400 hover:text-zinc-700"
+                      >
+                        <ImagePlus size={16} /> Upload cover
+                      </button>
+                    )}
+                    <input
+                      ref={coverInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        onCoverPicked(e.target.files?.[0])
+                        e.target.value = ''
+                      }}
+                    />
+                  </Field>
+                )}
+
+                <Field label="Slug">
+                  <input
+                    value={form.slug}
+                    onChange={set('slug')}
+                    placeholder="auto-generated-from-title"
+                    className="w-full rounded-lg border border-zinc-200 px-3 py-2 font-mono text-xs outline-none focus:border-zinc-400"
+                  />
+                </Field>
+                <Field label={isFaq ? 'Short answer (shown in lists)' : 'Excerpt'}>
+                  <textarea
+                    value={form.excerpt}
+                    onChange={set('excerpt')}
+                    rows={3}
+                    className="w-full resize-none rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-zinc-400"
+                  />
+                </Field>
+                <Field label="Category">
+                  <input
+                    value={form.category}
+                    onChange={set('category')}
+                    placeholder={isFaq ? 'e.g. Billing' : 'e.g. Product'}
+                    className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-zinc-400"
+                  />
+                </Field>
+                <Field label="Tags (comma separated)">
+                  <input
+                    value={form.tags}
+                    onChange={set('tags')}
+                    placeholder="react, fastapi"
+                    className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-zinc-400"
+                  />
+                </Field>
+                <Field label="Author">
+                  <select
+                    value={form.author}
+                    onChange={(e) => setForm((f) => ({ ...f, author: e.target.value }))}
+                    className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-400"
+                  >
+                    <option value="">— No author —</option>
+                    {form.author && !users.some((u) => u.name === form.author) && (
+                      <option value={form.author}>{form.author}</option>
+                    )}
+                    {users.map((u) => (
+                      <option key={u.id} value={u.name}>
+                        {u.name}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              </>
+            )}
+
+            {sideTab === 'seo' && (
+              <>
+                <Field label={`Meta title (${form.meta_title.length}/60)`}>
+                  <input
+                    value={form.meta_title}
+                    onChange={set('meta_title')}
+                    placeholder={form.title || 'Defaults to the title'}
+                    className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-zinc-400"
+                  />
+                </Field>
+                <Field label={`Meta description (${form.meta_description.length}/160)`}>
+                  <textarea
+                    value={form.meta_description}
+                    onChange={set('meta_description')}
+                    rows={3}
+                    placeholder="A short summary shown in search results."
+                    className="w-full resize-none rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-zinc-400"
+                  />
+                </Field>
+                <Field label="Schema code (JSON-LD)">
+                  <textarea
+                    value={form.schema_code}
+                    onChange={set('schema_code')}
+                    rows={6}
+                    spellCheck={false}
+                    placeholder={'{\n  "@context": "https://schema.org",\n  "@type": "Article"\n}'}
+                    className="w-full resize-y rounded-lg border border-zinc-200 px-3 py-2 font-mono text-xs outline-none focus:border-zinc-400"
+                  />
+                  {schemaInvalid(form.schema_code) && (
+                    <p className="mt-1 text-xs text-amber-600">
+                      Heads up: this is not valid JSON — it will be embedded as-is.
+                    </p>
+                  )}
+                </Field>
+              </>
+            )}
+
+            {sideTab === 'ai' && <AiWriterPanel module={module} onDraft={applyDraft} />}
+          </div>
         </aside>
       </div>
     </div>
@@ -497,15 +562,6 @@ function schemaInvalid(code: string): boolean {
   } catch {
     return true
   }
-}
-
-function Panel({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="rounded-xl border border-zinc-200 bg-white p-4">
-      <h3 className="mb-3 text-xs font-semibold tracking-wider text-zinc-400 uppercase">{title}</h3>
-      <div className="space-y-3">{children}</div>
-    </div>
-  )
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {

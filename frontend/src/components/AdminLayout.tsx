@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import {
+  BookOpen,
   CalendarClock,
   CheckCircle2,
   ChevronRight,
@@ -64,7 +65,6 @@ export default function AdminLayout() {
           {MODULES.map(({ module, icon: Icon }) => {
             const expanded = open[module]
             const moduleStats = stats?.[module]
-            const hasScheduled = (moduleStats?.scheduled ?? 0) > 0
             return (
               <div key={module} className="mb-0.5">
                 <button
@@ -97,15 +97,13 @@ export default function AdminLayout() {
                       label="Published"
                       count={moduleStats?.published}
                     />
-                    {hasScheduled && (
-                      <SubLink
-                        to={`/admin/${module}/scheduled`}
-                        icon={CalendarClock}
-                        label="Scheduled"
-                        count={moduleStats?.scheduled}
-                        accent
-                      />
-                    )}
+                    <SubLink
+                      to={`/admin/${module}/scheduled`}
+                      icon={CalendarClock}
+                      label="Scheduled"
+                      count={moduleStats?.scheduled}
+                      accent
+                    />
                   </div>
                 )}
               </div>
@@ -115,6 +113,17 @@ export default function AdminLayout() {
           <div className="mt-6 px-2 pb-2 text-[11px] font-semibold tracking-wider text-zinc-400 uppercase">
             Workspace
           </div>
+          <NavLink
+            to="/admin/knowledge"
+            className={({ isActive }) =>
+              `flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors ${
+                isActive ? 'bg-zinc-100 text-zinc-900' : 'text-zinc-500 hover:bg-zinc-50 hover:text-zinc-900'
+              }`
+            }
+          >
+            <BookOpen size={16} />
+            Knowledge Base
+          </NavLink>
           <NavLink
             to="/admin/media"
             className={({ isActive }) =>

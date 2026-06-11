@@ -236,6 +236,49 @@ export const settingsApi = {
     request<void>(`/api/admin/settings/users/${id}`, { method: 'DELETE' }),
 }
 
+export interface AiDraft {
+  title: string
+  excerpt: string
+  content_html: string
+  meta_title: string
+  meta_description: string
+  tags: string[]
+  sources: string[]
+  model: string
+}
+
+export const aiApi = {
+  generate: (data: {
+    prompt: string
+    module: Module
+    tone: string
+    length: string
+    use_knowledge: boolean
+  }) => request<AiDraft>('/api/ai/generate', { method: 'POST', body: JSON.stringify(data) }),
+}
+
+export interface KnowledgeDoc {
+  id: number
+  file_name: string
+  summary: string
+  keywords: string[]
+  size: number
+  created_at: string
+}
+
+export const knowledgeApi = {
+  list: () => request<KnowledgeDoc[]>('/api/admin/knowledge'),
+  get: (id: number) => request<KnowledgeDoc & { content: string }>(`/api/admin/knowledge/${id}`),
+  upload: (file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    return request<KnowledgeDoc>('/api/admin/knowledge', { method: 'POST', body: form })
+  },
+  reanalyze: (id: number) =>
+    request<KnowledgeDoc>(`/api/admin/knowledge/${id}/reanalyze`, { method: 'POST' }),
+  remove: (id: number) => request<void>(`/api/admin/knowledge/${id}`, { method: 'DELETE' }),
+}
+
 export async function uploadFile(file: File) {
   const form = new FormData()
   form.append('file', file)

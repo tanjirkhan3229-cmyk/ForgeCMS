@@ -3,6 +3,7 @@ import AdminLayout from './components/AdminLayout'
 import PublicLayout from './components/PublicLayout'
 import StatusTilePage from './pages/admin/StatusTilePage'
 import EditorPage from './pages/admin/EditorPage'
+import KnowledgeBasePage from './pages/admin/KnowledgeBasePage'
 import MediaLibraryPage from './pages/admin/MediaLibraryPage'
 import SettingsPage from './pages/admin/SettingsPage'
 import ContentListPage from './pages/public/ContentListPage'
@@ -31,6 +32,7 @@ export default function App() {
       <Route path="/admin" element={<AdminLayout />}>
         <Route index element={<Navigate to="/admin/blogs/drafts" replace />} />
         <Route path="media" element={<MediaLibraryPage />} />
+        <Route path="knowledge" element={<KnowledgeBasePage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path=":module" element={<ModuleIndexRedirect />} />
         <Route path=":module/drafts" element={<StatusTilePage status="draft" />} />

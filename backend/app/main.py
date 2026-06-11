@@ -2,12 +2,27 @@ import asyncio
 import os
 from contextlib import asynccontextmanager
 
+
+def load_env(path: str = ".env"):
+    """Minimal .env loader; real env vars always win."""
+    if not os.path.isfile(path):
+        return
+    with open(path) as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                key, value = line.split("=", 1)
+                os.environ.setdefault(key.strip(), value.strip())
+
+
+load_env()
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from .database import Base, engine
-from .routers import admin, media, public, settings, uploads
+from .routers import admin, ai, knowledge, media, public, settings, uploads
 from .scheduler import scheduler_loop
 
 Base.metadata.create_all(bind=engine)
@@ -45,9 +60,19 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="ForgeCMS API", version="1.0.0", lifespan=lifespan)
 
+DEFAULT_CORS_ORIGINS = (
+    "http://localhost:5173,http://127.0.0.1:5173,"
+    "https://www.forgesop.com,https://forgesop.com"
+)
+cors_origins = [
+    origin.strip()
+    for origin in os.environ.get("CORS_ORIGINS", DEFAULT_CORS_ORIGINS).split(",")
+    if origin.strip()
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -61,13 +86,38 @@ def health():
     return {"status": "ok"}
 
 
+def mount_spa(app: FastAPI):
+    """Serve the built admin/public frontend (SPA) when a dist dir is present.
+
+    Registered after all API routes, so /api/* and /uploads/* keep priority.
+    Unknown paths fall back to index.html for client-side routing.
+    """
+    from fastapi.responses import FileResponse
+
+    dist = os.environ.get("FRONTEND_DIST", "static")
+    index = os.path.join(dist, "index.html")
+    if not os.path.isfile(index):
+        return
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    def spa(full_path: str):
+        candidate = os.path.join(dist, full_path)
+        if full_path and os.path.isfile(candidate):
+            return FileResponse(candidate)
+        return FileResponse(index)
+
+
 # The health route and admin routes must be registered before the public
 # router: its /api/{module} path would otherwise capture them, and FastAPI
 # matches routes in declaration order.
 app.include_router(uploads.router)
-# media and settings must precede the admin router: its /api/admin/{module}
-# pattern would otherwise capture (and 422) /api/admin/media and /settings.
+app.include_router(ai.router)
+# media, settings and knowledge must precede the admin router: its
+# /api/admin/{module} pattern would otherwise capture (and 422) their paths.
 app.include_router(media.router)
 app.include_router(settings.router)
+app.include_router(knowledge.router)
 app.include_router(admin.router)
 app.include_router(public.router)
+
+mount_spa(app)

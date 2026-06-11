@@ -4,6 +4,11 @@ import { ArrowLeft } from 'lucide-react'
 import type { ContentItem, Module } from '../../lib/api'
 import { formatDate, publicApi } from '../../lib/api'
 
+const BACK_LABEL: Partial<Record<Module, string>> = {
+  blogs: 'blog',
+  news: 'news',
+}
+
 export default function ContentDetailPage({ module }: { module: Module }) {
   const { slug } = useParams() as { slug: string }
   const [item, setItem] = useState<ContentItem | null>(null)
@@ -56,7 +61,7 @@ export default function ContentDetailPage({ module }: { module: Module }) {
       <div className="py-32 text-center">
         <p className="text-lg font-semibold">Article not found</p>
         <Link to={`/${module}`} className="mt-2 inline-block text-sm text-indigo-600 hover:underline">
-          Back to {module === 'news' ? 'news' : 'blog'}
+          Back to {BACK_LABEL[module]}
         </Link>
       </div>
     )
@@ -72,7 +77,7 @@ export default function ContentDetailPage({ module }: { module: Module }) {
         to={`/${module}`}
         className="mb-8 inline-flex items-center gap-1.5 text-sm font-medium text-zinc-500 hover:text-zinc-900"
       >
-        <ArrowLeft size={15} /> Back to {module === 'news' ? 'news' : 'blog'}
+        <ArrowLeft size={15} /> Back to {BACK_LABEL[module]}
       </Link>
 
       {item.category && (

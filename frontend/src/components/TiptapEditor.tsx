@@ -70,10 +70,18 @@ const FONTS = [
 interface Props {
   initialContent: Record<string, unknown> | null
   onUpdate: (json: Record<string, unknown>, html: string) => void
+  onReady?: (editor: Editor) => void
   placeholder?: string
+  embedded?: boolean
 }
 
-export default function TiptapEditor({ initialContent, onUpdate, placeholder }: Props) {
+export default function TiptapEditor({
+  initialContent,
+  onUpdate,
+  onReady,
+  placeholder,
+  embedded,
+}: Props) {
   const editor = useEditor({
     extensions: [
       StarterKit.configure({ codeBlock: false }),
@@ -100,12 +108,13 @@ export default function TiptapEditor({ initialContent, onUpdate, placeholder }: 
     ],
     content: initialContent && Object.keys(initialContent).length ? initialContent : '',
     onUpdate: ({ editor }) => onUpdate(editor.getJSON() as Record<string, unknown>, editor.getHTML()),
+    onCreate: ({ editor }) => onReady?.(editor),
   })
 
   if (!editor) return null
 
   return (
-    <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
+    <div className={embedded ? '' : 'overflow-hidden rounded-xl border border-zinc-200 bg-white'}>
       <Toolbar editor={editor} />
       <EditorContent editor={editor} />
       <div className="flex justify-end border-t border-zinc-100 px-4 py-1.5 text-xs text-zinc-400">
