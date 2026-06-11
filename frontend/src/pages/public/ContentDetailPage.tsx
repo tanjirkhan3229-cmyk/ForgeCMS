@@ -19,6 +19,38 @@ export default function ContentDetailPage({ module }: { module: Module }) {
     window.scrollTo(0, 0)
   }, [module, slug])
 
+  // Apply the item's SEO fields to the document head.
+  useEffect(() => {
+    if (!item) return
+    const previousTitle = document.title
+    document.title = item.meta_title || item.title
+
+    let meta = document.querySelector<HTMLMetaElement>('meta[name="description"]')
+    const createdMeta = !meta
+    if (!meta) {
+      meta = document.createElement('meta')
+      meta.name = 'description'
+      document.head.appendChild(meta)
+    }
+    const previousDescription = meta.content
+    if (item.meta_description) meta.content = item.meta_description
+
+    let script: HTMLScriptElement | null = null
+    if (item.schema_code.trim()) {
+      script = document.createElement('script')
+      script.type = 'application/ld+json'
+      script.text = item.schema_code
+      document.head.appendChild(script)
+    }
+
+    return () => {
+      document.title = previousTitle
+      if (createdMeta) meta!.remove()
+      else meta!.content = previousDescription
+      script?.remove()
+    }
+  }, [item])
+
   if (notFound) {
     return (
       <div className="py-32 text-center">

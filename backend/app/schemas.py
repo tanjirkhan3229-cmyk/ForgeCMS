@@ -14,6 +14,9 @@ class ContentBase(BaseModel):
     category: str = ""
     tags: List[str] = []
     author: str = ""
+    meta_title: str = ""
+    meta_description: str = ""
+    schema_code: str = ""
     file_url: str = ""
     file_name: str = ""
     file_size: int = 0

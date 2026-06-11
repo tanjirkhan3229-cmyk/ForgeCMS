@@ -33,6 +33,11 @@ class ContentItem(Base):
     publish_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
     published_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
 
+    # SEO
+    meta_title: Mapped[str] = mapped_column(String(300), default="")
+    meta_description: Mapped[str] = mapped_column(Text, default="")
+    schema_code: Mapped[str] = mapped_column(Text, default="")
+
     # Resource-specific (null/empty for other modules)
     file_url: Mapped[str] = mapped_column(String(500), default="")
     file_name: Mapped[str] = mapped_column(String(300), default="")
