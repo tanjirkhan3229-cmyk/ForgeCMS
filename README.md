@@ -139,10 +139,23 @@ The website (www.forgesop.com) then consumes `https://<your-domain>/api/...`,
 and editors use `https://<your-domain>/admin`. Remember image URLs in API
 responses are relative (`/uploads/...`) — prefix them with the API domain.
 
+## Authentication
+
+The studio root (`/`) is a login page; after signing in you land on the admin
+dashboard. All admin APIs (`/api/admin/*`, `/api/uploads`, `/api/ai/*`) require
+a Bearer token from `POST /api/auth/login`; the public content APIs stay open.
+
+Credentials live in **Supabase Auth**: login proxies the password grant to
+Supabase (`SUPABASE_URL` + `SUPABASE_ANON_KEY` env), and on success the backend
+mints its own HMAC-signed 7-day session token (`SECRET_KEY` env — set it in
+production or sessions reset on redeploy). Create/manage users and passwords in
+the Supabase dashboard (Authentication → Users) or via its admin API; set
+`app_metadata.forge_role` to control the role assigned on first login. Each
+first login upserts the user into the local directory shown in User Management,
+where role/status stay editable (suspending a user there blocks login).
+
 ## Notes
 
-- There is no authentication yet — add auth before exposing the admin API
-  beyond localhost.
 - The database defaults to local SQLite (`backend/forge.db`). Set
   `DATABASE_URL` in `backend/.env` to use Postgres — e.g. Supabase via its
   session pooler:

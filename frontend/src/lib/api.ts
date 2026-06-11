@@ -111,11 +111,37 @@ export const MODULE_SINGULAR: Record<Module, string> = {
   faqs: 'FAQ Article',
 }
 
+// ---------- auth token ----------
+
+const TOKEN_KEY = 'forgecms_token'
+
+export function getToken(): string | null {
+  return localStorage.getItem(TOKEN_KEY)
+}
+
+export function setToken(token: string) {
+  localStorage.setItem(TOKEN_KEY, token)
+}
+
+export function clearToken() {
+  localStorage.removeItem(TOKEN_KEY)
+}
+
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(url, {
-    headers: options?.body instanceof FormData ? undefined : { 'Content-Type': 'application/json' },
-    ...options,
-  })
+  const token = getToken()
+  const headers: Record<string, string> = {
+    ...(options?.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  }
+  const res = await fetch(url, { ...options, headers })
+  if (res.status === 401 && !url.startsWith('/api/auth/login')) {
+    // Session expired or revoked — drop the token and send the user to login.
+    clearToken()
+    if (!window.location.pathname.startsWith('/login')) {
+      window.location.href = '/login'
+    }
+    throw new Error('Not authenticated')
+  }
   if (!res.ok) {
     let detail = res.statusText
     try {
@@ -163,6 +189,24 @@ export function formatBytes(bytes: number): string {
     i++
   }
   return `${value.toFixed(value >= 10 || i === 0 ? 0 : 1)} ${units[i]}`
+}
+
+export interface AuthUser {
+  id: number
+  name: string
+  email: string
+  role: Role
+  status: UserStatus
+  avatar_url: string
+}
+
+export const authApi = {
+  login: (email: string, password: string) =>
+    request<{ token: string; user: AuthUser }>('/api/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    }),
+  me: () => request<AuthUser>('/api/auth/me'),
 }
 
 export const adminApi = {

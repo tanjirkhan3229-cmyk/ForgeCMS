@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { NavLink, Outlet, useLocation } from 'react-router-dom'
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
   BookOpen,
   CalendarClock,
@@ -11,13 +11,15 @@ import {
   HelpCircle,
   Hexagon,
   ImageIcon,
+  LayoutDashboard,
+  LogOut,
   Newspaper,
   PencilLine,
   Plus,
   Settings,
 } from 'lucide-react'
-import type { Module, OverviewStats } from '../lib/api'
-import { adminApi, MODULE_LABELS } from '../lib/api'
+import type { AuthUser, Module, OverviewStats } from '../lib/api'
+import { adminApi, authApi, clearToken, MODULE_LABELS } from '../lib/api'
 
 const MODULES: { module: Module; icon: typeof FileText }[] = [
   { module: 'blogs', icon: FileText },
@@ -35,11 +37,22 @@ export default function AdminLayout() {
     activeModule ? { [activeModule]: true } : { blogs: true },
   )
   const [stats, setStats] = useState<OverviewStats | null>(null)
+  const [user, setUser] = useState<AuthUser | null>(null)
+  const navigate = useNavigate()
 
   // Refresh sidebar counts whenever the route changes (e.g. after saving).
   useEffect(() => {
     adminApi.overviewStats().then(setStats).catch(() => {})
   }, [location.pathname])
+
+  useEffect(() => {
+    authApi.me().then(setUser).catch(() => {})
+  }, [])
+
+  function logout() {
+    clearToken()
+    navigate('/login', { replace: true })
+  }
 
   useEffect(() => {
     if (activeModule) setOpen((o) => ({ ...o, [activeModule]: true }))
@@ -59,6 +72,19 @@ export default function AdminLayout() {
         </div>
 
         <nav className="flex-1 overflow-y-auto px-3 py-4">
+          <NavLink
+            to="/admin"
+            end
+            className={({ isActive }) =>
+              `mb-3 flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors ${
+                isActive ? 'bg-zinc-100 text-zinc-900' : 'text-zinc-500 hover:bg-zinc-50 hover:text-zinc-900'
+              }`
+            }
+          >
+            <LayoutDashboard size={16} />
+            Dashboard
+          </NavLink>
+
           <div className="px-2 pb-2 text-[11px] font-semibold tracking-wider text-zinc-400 uppercase">
             Content
           </div>
@@ -150,7 +176,7 @@ export default function AdminLayout() {
 
         <div className="border-t border-zinc-100 p-3">
           <a
-            href="/"
+            href="/blogs"
             target="_blank"
             rel="noreferrer"
             className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium text-zinc-500 transition-colors hover:bg-zinc-50 hover:text-zinc-900"
@@ -158,6 +184,24 @@ export default function AdminLayout() {
             <Globe size={16} />
             View site
           </a>
+          <div className="mt-1 flex items-center gap-2.5 rounded-lg px-2.5 py-2">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-zinc-900 text-[11px] font-semibold text-white">
+              {(user?.name || 'A').slice(0, 1).toUpperCase()}
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-[13px] leading-tight font-medium text-zinc-900">
+                {user?.name || '—'}
+              </div>
+              <div className="truncate text-[11px] leading-tight text-zinc-400">{user?.email}</div>
+            </div>
+            <button
+              onClick={logout}
+              title="Sign out"
+              className="rounded-md p-1.5 text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-900"
+            >
+              <LogOut size={15} />
+            </button>
+          </div>
         </div>
       </aside>
 
