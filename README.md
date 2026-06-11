@@ -50,6 +50,9 @@ npm run dev
 | `GET /api/{module}/categories` | Distinct categories in published items |
 | `GET /api/resources/{id}/download` | Download a resource file (increments counter) |
 | `POST /api/uploads` | Multipart file upload (images, resource files) — returns `{url, file_name, file_size, file_type}` |
+| `GET /api/admin/stats` | Per-module draft/scheduled/published counts (drives the sidebar) |
+| `GET/DELETE /api/admin/media[/{name}]` | Media library — list uploads (`search`, `type=image\|file`, paging) / delete a file |
+| `GET/PUT /api/admin/settings/profile` | User profile settings (name, email, title, bio, avatar) |
 
 All timestamps are stored as naive UTC; the frontend converts to/from local
 time for display and the schedule picker.
@@ -61,6 +64,15 @@ module), excerpt, TipTap JSON (`content`) plus rendered HTML (`content_html`),
 cover image, category, tags, author, status (`draft | scheduled | published`),
 `publish_at`, and resource file metadata (`file_url`, `file_name`, `file_size`,
 `file_type`, `download_count`).
+
+## Admin navigation
+
+Each content module is a dropdown in the sidebar: **Create New** (opens the
+editor), **Drafts** and **Published** (3×3 tile grids with pagination and
+search), and **Scheduled**, which appears automatically whenever that module
+has scheduled items. The Workspace section holds the **Media Library** (browse,
+upload, copy URL, delete all uploaded files) and **Settings** (user profile:
+name, email, title, bio, avatar).
 
 ## Editor
 

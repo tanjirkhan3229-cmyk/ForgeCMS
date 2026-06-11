@@ -1,12 +1,19 @@
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes, useParams } from 'react-router-dom'
 import AdminLayout from './components/AdminLayout'
 import PublicLayout from './components/PublicLayout'
-import ModuleListPage from './pages/admin/ModuleListPage'
+import StatusTilePage from './pages/admin/StatusTilePage'
 import EditorPage from './pages/admin/EditorPage'
+import MediaLibraryPage from './pages/admin/MediaLibraryPage'
+import SettingsPage from './pages/admin/SettingsPage'
 import ContentListPage from './pages/public/ContentListPage'
 import ContentDetailPage from './pages/public/ContentDetailPage'
 import FaqPage from './pages/public/FaqPage'
 import ResourcesPage from './pages/public/ResourcesPage'
+
+function ModuleIndexRedirect() {
+  const { module } = useParams()
+  return <Navigate to={`/admin/${module}/drafts`} replace />
+}
 
 export default function App() {
   return (
@@ -22,8 +29,13 @@ export default function App() {
       </Route>
 
       <Route path="/admin" element={<AdminLayout />}>
-        <Route index element={<Navigate to="/admin/blogs" replace />} />
-        <Route path=":module" element={<ModuleListPage />} />
+        <Route index element={<Navigate to="/admin/blogs/drafts" replace />} />
+        <Route path="media" element={<MediaLibraryPage />} />
+        <Route path="settings" element={<SettingsPage />} />
+        <Route path=":module" element={<ModuleIndexRedirect />} />
+        <Route path=":module/drafts" element={<StatusTilePage status="draft" />} />
+        <Route path=":module/published" element={<StatusTilePage status="published" />} />
+        <Route path=":module/scheduled" element={<StatusTilePage status="scheduled" />} />
         <Route path=":module/new" element={<EditorPage />} />
         <Route path=":module/:id/edit" element={<EditorPage />} />
       </Route>

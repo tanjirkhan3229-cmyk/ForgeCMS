@@ -52,6 +52,21 @@ def get_item(db: Session, module: str, item_id: int) -> ContentItem:
     return item
 
 
+# Declared before the /{module} routes so the literal path wins.
+@router.get("/stats")
+def overview_stats(db: Session = Depends(get_db)):
+    out = {}
+    for module in MODULES:
+        base = db.query(ContentItem).filter(ContentItem.module == module)
+        out[module] = {
+            "drafts": base.filter(ContentItem.status == "draft").count(),
+            "scheduled": base.filter(ContentItem.status == "scheduled").count(),
+            "published": base.filter(ContentItem.status == "published").count(),
+            "total": base.count(),
+        }
+    return out
+
+
 @router.get("/{module}/stats", response_model=StatsOut)
 def module_stats(module: str = MODULE_PATH, db: Session = Depends(get_db)):
     base = db.query(ContentItem).filter(ContentItem.module == module)

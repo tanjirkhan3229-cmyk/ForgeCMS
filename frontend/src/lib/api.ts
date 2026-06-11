@@ -39,6 +39,33 @@ export interface ModuleStats {
   total: number
 }
 
+export type OverviewStats = Record<Module, ModuleStats>
+
+export interface MediaFile {
+  name: string
+  url: string
+  size: number
+  content_type: string
+  is_image: boolean
+  modified_at: string
+}
+
+export interface MediaList {
+  items: MediaFile[]
+  total: number
+  page: number
+  page_size: number
+}
+
+export interface Profile {
+  display_name: string
+  email: string
+  title: string
+  bio: string
+  avatar_url: string
+  updated_at: string | null
+}
+
 export const MODULE_LABELS: Record<Module, string> = {
   blogs: 'Blogs',
   news: 'News',
@@ -117,6 +144,7 @@ export const adminApi = {
     return request<ContentList>(`/api/admin/${module}?${qs}`)
   },
   stats: (module: Module) => request<ModuleStats>(`/api/admin/${module}/stats`),
+  overviewStats: () => request<OverviewStats>('/api/admin/stats'),
   get: (module: Module, id: number) => request<ContentItem>(`/api/admin/${module}/${id}`),
   create: (module: Module, data: Partial<ContentItem>) =>
     request<ContentItem>(`/api/admin/${module}`, { method: 'POST', body: JSON.stringify(data) }),
@@ -149,6 +177,25 @@ export const publicApi = {
   categories: (module: Module) => request<string[]>(`/api/${module}/categories`),
   bySlug: (module: Module, slug: string) =>
     request<ContentItem>(`/api/${module}/slug/${encodeURIComponent(slug)}`),
+}
+
+export const mediaApi = {
+  list: (params: { search?: string; type?: 'image' | 'file'; page?: number; page_size?: number } = {}) => {
+    const qs = new URLSearchParams()
+    if (params.search) qs.set('search', params.search)
+    if (params.type) qs.set('type', params.type)
+    qs.set('page', String(params.page ?? 1))
+    qs.set('page_size', String(params.page_size ?? 24))
+    return request<MediaList>(`/api/admin/media?${qs}`)
+  },
+  remove: (name: string) =>
+    request<void>(`/api/admin/media/${encodeURIComponent(name)}`, { method: 'DELETE' }),
+}
+
+export const settingsApi = {
+  getProfile: () => request<Profile>('/api/admin/settings/profile'),
+  updateProfile: (data: Omit<Profile, 'updated_at'>) =>
+    request<Profile>('/api/admin/settings/profile', { method: 'PUT', body: JSON.stringify(data) }),
 }
 
 export async function uploadFile(file: File) {

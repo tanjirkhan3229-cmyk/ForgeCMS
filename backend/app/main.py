@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from .database import Base, engine
-from .routers import admin, public, uploads
+from .routers import admin, media, public, settings, uploads
 from .scheduler import scheduler_loop
 
 Base.metadata.create_all(bind=engine)
@@ -42,5 +42,9 @@ def health():
 # router: its /api/{module} path would otherwise capture them, and FastAPI
 # matches routes in declaration order.
 app.include_router(uploads.router)
+# media and settings must precede the admin router: its /api/admin/{module}
+# pattern would otherwise capture (and 422) /api/admin/media and /settings.
+app.include_router(media.router)
+app.include_router(settings.router)
 app.include_router(admin.router)
 app.include_router(public.router)
