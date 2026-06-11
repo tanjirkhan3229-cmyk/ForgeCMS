@@ -38,9 +38,6 @@ def migrate_schema():
             "meta_description": "TEXT DEFAULT '' NOT NULL",
             "schema_code": "TEXT DEFAULT '' NOT NULL",
         },
-        "users": {
-            "password_hash": "VARCHAR(300) DEFAULT '' NOT NULL",
-        },
     }
     inspector = inspect(engine)
     with engine.begin() as conn:
@@ -52,7 +49,6 @@ def migrate_schema():
 
 
 migrate_schema()
-auth.bootstrap_admin()
 
 
 @asynccontextmanager

@@ -207,11 +207,6 @@ export const authApi = {
       body: JSON.stringify({ email, password }),
     }),
   me: () => request<AuthUser>('/api/auth/me'),
-  changePassword: (current_password: string, new_password: string) =>
-    request<AuthUser>('/api/auth/change-password', {
-      method: 'POST',
-      body: JSON.stringify({ current_password, new_password }),
-    }),
 }
 
 export const adminApi = {

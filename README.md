@@ -145,12 +145,14 @@ The studio root (`/`) is a login page; after signing in you land on the admin
 dashboard. All admin APIs (`/api/admin/*`, `/api/uploads`, `/api/ai/*`) require
 a Bearer token from `POST /api/auth/login`; the public content APIs stay open.
 
-Credentials are bootstrapped from env on startup: `ADMIN_EMAIL` +
-`ADMIN_PASSWORD` upsert an active admin (rotating the env var rotates the
-credential). `SECRET_KEY` signs the session tokens — set it in production or
-sessions reset on redeploy. Passwords are PBKDF2-hashed; users created in User
-Management can't log in until they have a password (`POST
-/api/auth/change-password` lets a signed-in user rotate their own).
+Credentials live in **Supabase Auth**: login proxies the password grant to
+Supabase (`SUPABASE_URL` + `SUPABASE_ANON_KEY` env), and on success the backend
+mints its own HMAC-signed 7-day session token (`SECRET_KEY` env — set it in
+production or sessions reset on redeploy). Create/manage users and passwords in
+the Supabase dashboard (Authentication → Users) or via its admin API; set
+`app_metadata.forge_role` to control the role assigned on first login. Each
+first login upserts the user into the local directory shown in User Management,
+where role/status stay editable (suspending a user there blocks login).
 
 ## Notes
 

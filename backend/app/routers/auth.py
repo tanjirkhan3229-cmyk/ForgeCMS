@@ -1,14 +1,13 @@
-"""Credential auth for the admin studio.
+"""Supabase-backed auth for the admin studio.
 
-Stateless signed tokens (HMAC over email + expiry) — no extra dependencies.
-The signing secret comes from SECRET_KEY env, falling back to a key persisted
-next to the database so sessions survive restarts.
+Credentials live in Supabase Auth (users are created/managed there). Login
+proxies the password grant to Supabase; on success the backend mints its own
+HMAC-signed 7-day session token, so editors aren't logged out when Supabase's
+short-lived access token expires.
 
-Bootstrap: ADMIN_EMAIL + ADMIN_PASSWORD env upsert an active admin on startup
-(password is re-synced to the env value each boot, so rotating the env var in
-the host rotates the credential). Without those vars, if no user can log in,
-a random password is generated for admin@forgesop.com and printed once to the
-server log.
+On first login a row is upserted into the local users table (the directory
+shown in User Management); the role comes from the Supabase user's
+app_metadata.forge_role and stays editable locally afterwards.
 """
 
 import base64
@@ -17,20 +16,23 @@ import hmac
 import os
 import secrets
 import time
-from datetime import datetime
 from typing import Optional
 
+import httpx
 from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel, ConfigDict
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from ..database import SessionLocal, get_db
-from ..models import User
+from ..database import get_db
+from ..models import ROLES, User
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 TOKEN_TTL_SECONDS = 7 * 24 * 3600
-PBKDF2_ITERATIONS = 200_000
+
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "").rstrip("/")
+SUPABASE_ANON_KEY = os.environ.get("SUPABASE_ANON_KEY", "")
 
 
 def _load_secret() -> bytes:
@@ -54,31 +56,7 @@ def _load_secret() -> bytes:
 SECRET = _load_secret()
 
 
-# ---------- password hashing (PBKDF2, stdlib only) ----------
-
-
-def hash_password(password: str) -> str:
-    salt = secrets.token_hex(16)
-    digest = hashlib.pbkdf2_hmac(
-        "sha256", password.encode(), salt.encode(), PBKDF2_ITERATIONS
-    ).hex()
-    return f"pbkdf2_sha256${PBKDF2_ITERATIONS}${salt}${digest}"
-
-
-def verify_password(password: str, stored: str) -> bool:
-    try:
-        algo, iterations, salt, digest = stored.split("$")
-        if algo != "pbkdf2_sha256":
-            return False
-        candidate = hashlib.pbkdf2_hmac(
-            "sha256", password.encode(), salt.encode(), int(iterations)
-        ).hex()
-        return hmac.compare_digest(candidate, digest)
-    except (ValueError, AttributeError):
-        return False
-
-
-# ---------- tokens ----------
+# ---------- session tokens ----------
 
 
 def make_token(email: str) -> str:
@@ -110,55 +88,14 @@ def require_auth(
     email = parse_token(token) if token else None
     if not email:
         raise HTTPException(status_code=401, detail="Not authenticated")
-    user = db.query(User).filter(User.email == email, User.status == "active").first()
+    user = (
+        db.query(User)
+        .filter(func.lower(User.email) == email.lower(), User.status == "active")
+        .first()
+    )
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
     return user
-
-
-# ---------- bootstrap ----------
-
-
-def bootstrap_admin():
-    db = SessionLocal()
-    try:
-        email = os.environ.get("ADMIN_EMAIL")
-        password = os.environ.get("ADMIN_PASSWORD")
-        if email and password:
-            user = db.query(User).filter(User.email == email).first()
-            if not user:
-                user = User(name="Admin", email=email, role="admin", status="active")
-                db.add(user)
-            user.role = "admin"
-            user.status = "active"
-            user.password_hash = hash_password(password)
-            db.commit()
-            return
-
-        has_login = (
-            db.query(User)
-            .filter(User.password_hash != "", User.status == "active")
-            .first()
-        )
-        if has_login:
-            return
-        generated = secrets.token_urlsafe(12)
-        email = "admin@forgesop.com"
-        user = db.query(User).filter(User.email == email).first()
-        if not user:
-            user = User(name="Admin", email=email, role="admin", status="active")
-            db.add(user)
-        user.status = "active"
-        user.password_hash = hash_password(generated)
-        db.commit()
-        print(
-            f"[auth] No login credentials found — created admin '{email}' "
-            f"with password: {generated}\n"
-            "[auth] Set ADMIN_EMAIL and ADMIN_PASSWORD env vars to control this.",
-            flush=True,
-        )
-    finally:
-        db.close()
 
 
 # ---------- endpoints ----------
@@ -185,42 +122,49 @@ class LoginOut(BaseModel):
     user: UserOut
 
 
-class ChangePasswordIn(BaseModel):
-    current_password: str
-    new_password: str
-
-
 @router.post("/login", response_model=LoginOut)
-def login(payload: LoginIn, db: Session = Depends(get_db)):
-    from sqlalchemy import func
+async def login(payload: LoginIn, db: Session = Depends(get_db)):
+    if not SUPABASE_URL or not SUPABASE_ANON_KEY:
+        raise HTTPException(
+            status_code=503,
+            detail="Auth is not configured: set SUPABASE_URL and SUPABASE_ANON_KEY",
+        )
 
-    user = (
-        db.query(User)
-        .filter(func.lower(User.email) == payload.email.strip().lower(), User.status == "active")
-        .first()
-    )
-    if not user or not user.password_hash or not verify_password(payload.password, user.password_hash):
+    email = payload.email.strip().lower()
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            response = await client.post(
+                f"{SUPABASE_URL}/auth/v1/token?grant_type=password",
+                headers={"apikey": SUPABASE_ANON_KEY, "Content-Type": "application/json"},
+                json={"email": email, "password": payload.password},
+            )
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=502, detail=f"Could not reach auth service: {exc}")
+
+    if response.status_code != 200:
         raise HTTPException(status_code=401, detail="Invalid email or password")
+
+    supa_user = response.json().get("user") or {}
+    meta_role = (supa_user.get("app_metadata") or {}).get("forge_role", "")
+    meta_name = (supa_user.get("user_metadata") or {}).get("name", "")
+
+    user = db.query(User).filter(func.lower(User.email) == email).first()
+    if not user:
+        user = User(
+            name=meta_name or email.split("@")[0].replace(".", " ").title(),
+            email=email,
+            role=meta_role if meta_role in ROLES else "editor",
+            status="active",
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+    elif user.status != "active":
+        raise HTTPException(status_code=401, detail="Account is suspended")
+
     return LoginOut(token=make_token(user.email), user=UserOut.model_validate(user))
 
 
 @router.get("/me", response_model=UserOut)
 def me(user: User = Depends(require_auth)):
-    return user
-
-
-@router.post("/change-password", response_model=UserOut)
-def change_password(
-    payload: ChangePasswordIn,
-    user: User = Depends(require_auth),
-    db: Session = Depends(get_db),
-):
-    if not verify_password(payload.current_password, user.password_hash):
-        raise HTTPException(status_code=401, detail="Current password is incorrect")
-    if len(payload.new_password) < 8:
-        raise HTTPException(status_code=422, detail="New password must be at least 8 characters")
-    user.password_hash = hash_password(payload.new_password)
-    user.updated_at = datetime.utcnow()
-    db.commit()
-    db.refresh(user)
     return user
