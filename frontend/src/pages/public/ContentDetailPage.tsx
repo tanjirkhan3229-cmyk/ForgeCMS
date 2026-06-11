@@ -7,7 +7,6 @@ import { formatDate, publicApi } from '../../lib/api'
 const BACK_LABEL: Partial<Record<Module, string>> = {
   blogs: 'blog',
   news: 'news',
-  knowledgebase: 'knowledge base',
 }
 
 export default function ContentDetailPage({ module }: { module: Module }) {

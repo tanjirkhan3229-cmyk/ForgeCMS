@@ -5,7 +5,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from .database import Base
 
-MODULES = ("blogs", "news", "resources", "faqs", "knowledgebase")
+MODULES = ("blogs", "news", "resources", "faqs")
 MODULE_PATTERN = "^(" + "|".join(MODULES) + ")$"
 STATUSES = ("draft", "scheduled", "published")
 
@@ -50,6 +50,20 @@ class ContentItem(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
     )
+
+
+class KnowledgeDoc(Base):
+    """An uploaded .md/.txt document the AI writer uses as grounding context."""
+
+    __tablename__ = "knowledge_docs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    file_name: Mapped[str] = mapped_column(String(300))
+    content: Mapped[str] = mapped_column(Text, default="")
+    summary: Mapped[str] = mapped_column(Text, default="")
+    keywords: Mapped[list] = mapped_column(JSON, default=list)
+    size: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
 ROLES = ("admin", "editor", "author", "viewer")

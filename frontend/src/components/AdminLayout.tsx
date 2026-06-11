@@ -24,7 +24,6 @@ const MODULES: { module: Module; icon: typeof FileText }[] = [
   { module: 'news', icon: Newspaper },
   { module: 'resources', icon: FolderDown },
   { module: 'faqs', icon: HelpCircle },
-  { module: 'knowledgebase', icon: BookOpen },
 ]
 
 export default function AdminLayout() {
@@ -114,6 +113,17 @@ export default function AdminLayout() {
           <div className="mt-6 px-2 pb-2 text-[11px] font-semibold tracking-wider text-zinc-400 uppercase">
             Workspace
           </div>
+          <NavLink
+            to="/admin/knowledge"
+            className={({ isActive }) =>
+              `flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors ${
+                isActive ? 'bg-zinc-100 text-zinc-900' : 'text-zinc-500 hover:bg-zinc-50 hover:text-zinc-900'
+              }`
+            }
+          >
+            <BookOpen size={16} />
+            Knowledge Base
+          </NavLink>
           <NavLink
             to="/admin/media"
             className={({ isActive }) =>

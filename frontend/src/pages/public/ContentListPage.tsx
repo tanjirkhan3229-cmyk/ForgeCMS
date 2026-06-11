@@ -13,10 +13,6 @@ const COPY: Partial<Record<Module, { title: string; subtitle: string }>> = {
     title: 'News',
     subtitle: 'Product announcements and company updates.',
   },
-  knowledgebase: {
-    title: 'Knowledge Base',
-    subtitle: 'Guides and how-tos to get the most out of the product.',
-  },
 }
 
 export default function ContentListPage({ module }: { module: Module }) {

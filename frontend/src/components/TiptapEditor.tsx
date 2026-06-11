@@ -72,9 +72,16 @@ interface Props {
   onUpdate: (json: Record<string, unknown>, html: string) => void
   onReady?: (editor: Editor) => void
   placeholder?: string
+  embedded?: boolean
 }
 
-export default function TiptapEditor({ initialContent, onUpdate, onReady, placeholder }: Props) {
+export default function TiptapEditor({
+  initialContent,
+  onUpdate,
+  onReady,
+  placeholder,
+  embedded,
+}: Props) {
   const editor = useEditor({
     extensions: [
       StarterKit.configure({ codeBlock: false }),
@@ -107,7 +114,7 @@ export default function TiptapEditor({ initialContent, onUpdate, onReady, placeh
   if (!editor) return null
 
   return (
-    <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
+    <div className={embedded ? '' : 'overflow-hidden rounded-xl border border-zinc-200 bg-white'}>
       <Toolbar editor={editor} />
       <EditorContent editor={editor} />
       <div className="flex justify-end border-t border-zinc-100 px-4 py-1.5 text-xs text-zinc-400">

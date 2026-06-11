@@ -1,16 +1,19 @@
 import json
-import os
 import re
-from typing import List
+from typing import List, Tuple
 
-import httpx
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
+
+from ..database import get_db
+from ..models import KnowledgeDoc
+from ..openrouter import chat
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])
 
-OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
-DEFAULT_MODEL = "openai/gpt-5.4"
+CONTEXT_CHAR_BUDGET = 9000
+MAX_SOURCES = 3
 
 LENGTH_GUIDE = {
     "short": "300-500 words",
@@ -23,7 +26,6 @@ MODULE_GUIDE = {
     "news": "a concise news article in journalistic style (inverted pyramid)",
     "resources": "a descriptive overview page for a downloadable resource, explaining what it contains and who it is for",
     "faqs": "a clear, direct answer to the question, written for a help-center audience",
-    "knowledgebase": "a structured knowledge-base article with step-by-step guidance where appropriate",
 }
 
 SYSTEM_PROMPT = """You are an expert content writer for a CMS. Write {kind}.
@@ -37,12 +39,23 @@ Respond with ONLY a JSON object (no markdown fences, no commentary) with exactly
 - "meta_description": an SEO description, max 160 characters
 - "tags": an array of 3-6 lowercase topic tags"""
 
+KNOWLEDGE_PREAMBLE = """
+
+You have access to the workspace knowledge base below. Treat it as the authoritative
+source: ground facts, terminology, product names and procedures in it, and prefer it
+over your general knowledge whenever they conflict. Do not invent details that
+contradict it.
+
+WORKSPACE KNOWLEDGE BASE:
+{context}"""
+
 
 class GenerateIn(BaseModel):
     prompt: str
     module: str = "blogs"
     tone: str = "professional"
     length: str = "medium"
+    use_knowledge: bool = True
 
 
 class GenerateOut(BaseModel):
@@ -52,7 +65,38 @@ class GenerateOut(BaseModel):
     meta_title: str = ""
     meta_description: str = ""
     tags: List[str] = []
+    sources: List[str] = []
     model: str = ""
+
+
+def select_relevant(db: Session, prompt: str) -> Tuple[str, List[str]]:
+    """Pick the knowledge docs most relevant to the prompt by term overlap."""
+    docs = db.query(KnowledgeDoc).all()
+    if not docs:
+        return "", []
+    words = set(re.findall(r"[a-z0-9]{3,}", prompt.lower()))
+    if not words:
+        return "", []
+
+    scored = []
+    for doc in docs:
+        haystack = " ".join(
+            [doc.content, doc.summary, " ".join(doc.keywords or []), doc.file_name]
+        ).lower()
+        score = sum(haystack.count(word) for word in words)
+        if score > 0:
+            scored.append((score, doc))
+    scored.sort(key=lambda pair: pair[0], reverse=True)
+
+    chunks, used, budget = [], [], CONTEXT_CHAR_BUDGET
+    for _, doc in scored[:MAX_SOURCES]:
+        if budget <= 0:
+            break
+        chunk = doc.content[:budget]
+        chunks.append(f"--- Source: {doc.file_name} ---\n{chunk}")
+        used.append(doc.file_name)
+        budget -= len(chunk)
+    return "\n\n".join(chunks), used
 
 
 def extract_json(text: str) -> dict:
@@ -69,63 +113,35 @@ def extract_json(text: str) -> dict:
 
 
 @router.post("/generate", response_model=GenerateOut)
-async def generate(payload: GenerateIn):
-    api_key = os.environ.get("OPENROUTER_API_KEY", "")
-    if not api_key:
-        raise HTTPException(
-            status_code=503,
-            detail="AI writer is not configured: set OPENROUTER_API_KEY in backend/.env",
-        )
+async def generate(payload: GenerateIn, db: Session = Depends(get_db)):
     if not payload.prompt.strip():
         raise HTTPException(status_code=422, detail="Prompt is required")
 
-    model = os.environ.get("OPENROUTER_MODEL", DEFAULT_MODEL)
     system = SYSTEM_PROMPT.format(
         kind=MODULE_GUIDE.get(payload.module, MODULE_GUIDE["blogs"]),
         tone=payload.tone,
         length=LENGTH_GUIDE.get(payload.length, LENGTH_GUIDE["medium"]),
     )
 
-    body = {
-        "model": model,
-        "messages": [
+    sources: List[str] = []
+    if payload.use_knowledge:
+        context, sources = select_relevant(db, payload.prompt)
+        if context:
+            system += KNOWLEDGE_PREAMBLE.format(context=context)
+
+    content, model = await chat(
+        [
             {"role": "system", "content": system},
             {"role": "user", "content": payload.prompt},
-        ],
-    }
-
-    try:
-        async with httpx.AsyncClient(timeout=300) as client:
-            response = await client.post(
-                OPENROUTER_URL,
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                    "X-Title": "ForgeCMS AI Writer",
-                },
-                json=body,
-            )
-    except httpx.HTTPError as exc:
-        raise HTTPException(status_code=502, detail=f"Could not reach OpenRouter: {exc}")
-
-    if response.status_code != 200:
-        detail = response.text[:300]
-        try:
-            detail = response.json()["error"]["message"]
-        except Exception:
-            pass
-        raise HTTPException(status_code=502, detail=f"OpenRouter error: {detail}")
-
-    try:
-        content = response.json()["choices"][0]["message"]["content"]
-    except (KeyError, IndexError):
-        raise HTTPException(status_code=502, detail="Unexpected response shape from OpenRouter")
+        ]
+    )
 
     try:
         data = extract_json(content)
     except json.JSONDecodeError:
         # Model ignored the JSON instruction — salvage the text as body HTML.
         paragraphs = "".join(f"<p>{p.strip()}</p>" for p in content.split("\n\n") if p.strip())
-        return GenerateOut(content_html=paragraphs, model=model)
+        return GenerateOut(content_html=paragraphs, sources=sources, model=model)
 
     tags = data.get("tags", [])
     if not isinstance(tags, list):
@@ -137,5 +153,6 @@ async def generate(payload: GenerateIn):
         meta_title=str(data.get("meta_title", "")),
         meta_description=str(data.get("meta_description", "")),
         tags=[str(t) for t in tags],
+        sources=sources,
         model=model,
     )

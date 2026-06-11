@@ -1,4 +1,4 @@
-export type Module = 'blogs' | 'news' | 'resources' | 'faqs' | 'knowledgebase'
+export type Module = 'blogs' | 'news' | 'resources' | 'faqs'
 export type Status = 'draft' | 'scheduled' | 'published'
 
 export interface ContentItem {
@@ -102,7 +102,6 @@ export const MODULE_LABELS: Record<Module, string> = {
   news: 'News',
   resources: 'Resources',
   faqs: 'FAQ Articles',
-  knowledgebase: 'Knowledge Base',
 }
 
 export const MODULE_SINGULAR: Record<Module, string> = {
@@ -110,7 +109,6 @@ export const MODULE_SINGULAR: Record<Module, string> = {
   news: 'News Article',
   resources: 'Resource',
   faqs: 'FAQ Article',
-  knowledgebase: 'Knowledge Base Article',
 }
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
@@ -245,12 +243,40 @@ export interface AiDraft {
   meta_title: string
   meta_description: string
   tags: string[]
+  sources: string[]
   model: string
 }
 
 export const aiApi = {
-  generate: (data: { prompt: string; module: Module; tone: string; length: string }) =>
-    request<AiDraft>('/api/ai/generate', { method: 'POST', body: JSON.stringify(data) }),
+  generate: (data: {
+    prompt: string
+    module: Module
+    tone: string
+    length: string
+    use_knowledge: boolean
+  }) => request<AiDraft>('/api/ai/generate', { method: 'POST', body: JSON.stringify(data) }),
+}
+
+export interface KnowledgeDoc {
+  id: number
+  file_name: string
+  summary: string
+  keywords: string[]
+  size: number
+  created_at: string
+}
+
+export const knowledgeApi = {
+  list: () => request<KnowledgeDoc[]>('/api/admin/knowledge'),
+  get: (id: number) => request<KnowledgeDoc & { content: string }>(`/api/admin/knowledge/${id}`),
+  upload: (file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    return request<KnowledgeDoc>('/api/admin/knowledge', { method: 'POST', body: form })
+  },
+  reanalyze: (id: number) =>
+    request<KnowledgeDoc>(`/api/admin/knowledge/${id}/reanalyze`, { method: 'POST' }),
+  remove: (id: number) => request<void>(`/api/admin/knowledge/${id}`, { method: 'DELETE' }),
 }
 
 export async function uploadFile(file: File) {
