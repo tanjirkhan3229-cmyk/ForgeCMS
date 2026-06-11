@@ -1,0 +1,81 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import 'tailwindcss';
+@plugin '@tailwindcss/typography';
+
+@theme {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+body {
+  @apply bg-white text-zinc-900 antialiased;
+}
+
+/* ---------- TipTap editor ---------- */
+.tiptap {
+  @apply min-h-[420px] px-6 py-5 outline-none;
+}
+
+.tiptap > * + * {
+  margin-top: 0.6em;
+}
+
+.tiptap p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  @apply pointer-events-none float-left h-0 text-zinc-400;
+}
+
+.tiptap h1 { @apply text-3xl font-bold; }
+.tiptap h2 { @apply text-2xl font-bold; }
+.tiptap h3 { @apply text-xl font-semibold; }
+.tiptap ul { @apply list-disc pl-6; }
+.tiptap ol { @apply list-decimal pl-6; }
+.tiptap blockquote { @apply border-l-4 border-zinc-200 pl-4 text-zinc-600 italic; }
+.tiptap code { @apply rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[0.85em] text-pink-600; }
+.tiptap pre { @apply rounded-lg bg-zinc-900 px-4 py-3 font-mono text-sm text-zinc-100; }
+.tiptap pre code { @apply bg-transparent p-0 text-inherit; }
+.tiptap img { @apply max-w-full rounded-lg; }
+.tiptap img.ProseMirror-selectednode { @apply ring-2 ring-indigo-500; }
+.tiptap hr { @apply my-6 border-zinc-200; }
+.tiptap a { @apply text-indigo-600 underline; }
+.tiptap mark { @apply rounded-sm px-0.5; }
+
+.tiptap table {
+  @apply my-4 w-full table-fixed border-collapse;
+}
+.tiptap th, .tiptap td {
+  @apply relative border border-zinc-200 px-3 py-2 align-top;
+}
+.tiptap th { @apply bg-zinc-50 text-left font-semibold; }
+.tiptap .selectedCell::after {
+  content: '';
+  @apply pointer-events-none absolute inset-0 bg-indigo-100/50;
+}
+
+.tiptap ul[data-type='taskList'] {
+  @apply list-none pl-0;
+}
+.tiptap ul[data-type='taskList'] li {
+  @apply flex items-start gap-2;
+}
+.tiptap ul[data-type='taskList'] li > label {
+  @apply mt-1;
+}
+
+.tiptap div[data-youtube-video] iframe {
+  @apply aspect-video w-full rounded-lg;
+}
+
+/* code block syntax highlighting (lowlight / highlight.js classes) */
+.tiptap .hljs-keyword, .tiptap .hljs-selector-tag { color: #c678dd; }
+.tiptap .hljs-string, .tiptap .hljs-attr { color: #98c379; }
+.tiptap .hljs-number, .tiptap .hljs-literal { color: #d19a66; }
+.tiptap .hljs-title, .tiptap .hljs-name { color: #61afef; }
+.tiptap .hljs-comment { color: #7f848e; font-style: italic; }
+.tiptap .hljs-built_in { color: #e6c07b; }
+
+/* ---------- Public article body ---------- */
+.article-body div[data-youtube-video] iframe,
+.article-body iframe {
+  @apply aspect-video w-full rounded-xl;
+}
