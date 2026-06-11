@@ -1,6 +1,9 @@
 import { Navigate, Route, Routes, useParams } from 'react-router-dom'
+import type { ReactNode } from 'react'
 import AdminLayout from './components/AdminLayout'
 import PublicLayout from './components/PublicLayout'
+import LoginPage from './pages/LoginPage'
+import DashboardPage from './pages/admin/DashboardPage'
 import StatusTilePage from './pages/admin/StatusTilePage'
 import EditorPage from './pages/admin/EditorPage'
 import KnowledgeBasePage from './pages/admin/KnowledgeBasePage'
@@ -10,17 +13,27 @@ import ContentListPage from './pages/public/ContentListPage'
 import ContentDetailPage from './pages/public/ContentDetailPage'
 import FaqPage from './pages/public/FaqPage'
 import ResourcesPage from './pages/public/ResourcesPage'
+import { getToken } from './lib/api'
 
 function ModuleIndexRedirect() {
   const { module } = useParams()
   return <Navigate to={`/admin/${module}/drafts`} replace />
 }
 
+/** Gate for the admin studio: no token → login page. */
+function RequireAuth({ children }: { children: ReactNode }) {
+  if (!getToken()) return <Navigate to="/login" replace />
+  return children
+}
+
 export default function App() {
   return (
     <Routes>
+      {/* The studio is the front door — public content lives under explicit paths. */}
+      <Route path="/" element={<Navigate to="/admin" replace />} />
+      <Route path="/login" element={<LoginPage />} />
+
       <Route element={<PublicLayout />}>
-        <Route path="/" element={<Navigate to="/blogs" replace />} />
         <Route path="/blogs" element={<ContentListPage module="blogs" />} />
         <Route path="/blogs/:slug" element={<ContentDetailPage module="blogs" />} />
         <Route path="/news" element={<ContentListPage module="news" />} />
@@ -29,8 +42,15 @@ export default function App() {
         <Route path="/resources" element={<ResourcesPage />} />
       </Route>
 
-      <Route path="/admin" element={<AdminLayout />}>
-        <Route index element={<Navigate to="/admin/blogs/drafts" replace />} />
+      <Route
+        path="/admin"
+        element={
+          <RequireAuth>
+            <AdminLayout />
+          </RequireAuth>
+        }
+      >
+        <Route index element={<DashboardPage />} />
         <Route path="media" element={<MediaLibraryPage />} />
         <Route path="knowledge" element={<KnowledgeBasePage />} />
         <Route path="settings" element={<SettingsPage />} />

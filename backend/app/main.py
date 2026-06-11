@@ -22,7 +22,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from .database import Base, engine
-from .routers import admin, ai, knowledge, media, public, settings, uploads
+from .routers import admin, ai, auth, knowledge, media, public, settings, uploads
 from .scheduler import scheduler_loop
 
 Base.metadata.create_all(bind=engine)
@@ -37,7 +37,10 @@ def migrate_schema():
             "meta_title": "VARCHAR(300) DEFAULT '' NOT NULL",
             "meta_description": "TEXT DEFAULT '' NOT NULL",
             "schema_code": "TEXT DEFAULT '' NOT NULL",
-        }
+        },
+        "users": {
+            "password_hash": "VARCHAR(300) DEFAULT '' NOT NULL",
+        },
     }
     inspector = inspect(engine)
     with engine.begin() as conn:
@@ -49,6 +52,7 @@ def migrate_schema():
 
 
 migrate_schema()
+auth.bootstrap_admin()
 
 
 @asynccontextmanager
@@ -110,14 +114,19 @@ def mount_spa(app: FastAPI):
 # The health route and admin routes must be registered before the public
 # router: its /api/{module} path would otherwise capture them, and FastAPI
 # matches routes in declaration order.
-app.include_router(uploads.router)
-app.include_router(ai.router)
+from fastapi import Depends
+
+admin_guard = [Depends(auth.require_auth)]
+
+app.include_router(auth.router)
+app.include_router(uploads.router, dependencies=admin_guard)
+app.include_router(ai.router, dependencies=admin_guard)
 # media, settings and knowledge must precede the admin router: its
 # /api/admin/{module} pattern would otherwise capture (and 422) their paths.
-app.include_router(media.router)
-app.include_router(settings.router)
-app.include_router(knowledge.router)
-app.include_router(admin.router)
+app.include_router(media.router, dependencies=admin_guard)
+app.include_router(settings.router, dependencies=admin_guard)
+app.include_router(knowledge.router, dependencies=admin_guard)
+app.include_router(admin.router, dependencies=admin_guard)
 app.include_router(public.router)
 
 mount_spa(app)

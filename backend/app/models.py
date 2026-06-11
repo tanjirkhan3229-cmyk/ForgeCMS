@@ -79,6 +79,8 @@ class User(Base):
     role: Mapped[str] = mapped_column(String(20), default="author")
     status: Mapped[str] = mapped_column(String(20), default="active")
     avatar_url: Mapped[str] = mapped_column(String(500), default="")
+    # Empty string means the user has no password set and cannot log in.
+    password_hash: Mapped[str] = mapped_column(String(300), default="")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow, onupdate=datetime.utcnow

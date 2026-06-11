@@ -139,10 +139,21 @@ The website (www.forgesop.com) then consumes `https://<your-domain>/api/...`,
 and editors use `https://<your-domain>/admin`. Remember image URLs in API
 responses are relative (`/uploads/...`) — prefix them with the API domain.
 
+## Authentication
+
+The studio root (`/`) is a login page; after signing in you land on the admin
+dashboard. All admin APIs (`/api/admin/*`, `/api/uploads`, `/api/ai/*`) require
+a Bearer token from `POST /api/auth/login`; the public content APIs stay open.
+
+Credentials are bootstrapped from env on startup: `ADMIN_EMAIL` +
+`ADMIN_PASSWORD` upsert an active admin (rotating the env var rotates the
+credential). `SECRET_KEY` signs the session tokens — set it in production or
+sessions reset on redeploy. Passwords are PBKDF2-hashed; users created in User
+Management can't log in until they have a password (`POST
+/api/auth/change-password` lets a signed-in user rotate their own).
+
 ## Notes
 
-- There is no authentication yet — add auth before exposing the admin API
-  beyond localhost.
 - The database defaults to local SQLite (`backend/forge.db`). Set
   `DATABASE_URL` in `backend/.env` to use Postgres — e.g. Supabase via its
   session pooler:
