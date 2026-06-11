@@ -117,5 +117,10 @@ OPENROUTER_MODEL=openai/gpt-5.4
 
 - There is no authentication yet — add auth before exposing the admin API
   beyond localhost.
-- SQLite is fine for a single instance; swap `DATABASE_URL` in
-  `backend/app/database.py` for Postgres in production.
+- The database defaults to local SQLite (`backend/forge.db`). Set
+  `DATABASE_URL` in `backend/.env` to use Postgres — e.g. Supabase via its
+  session pooler:
+  `postgresql+psycopg://postgres.<project-ref>:<url-encoded-password>@aws-1-<region>.pooler.supabase.com:5432/postgres`.
+  Tables are created automatically on first start. Note: Supabase's direct
+  `db.<ref>.supabase.co` host is IPv6-only — use the pooler host on
+  IPv4-only networks, and URL-encode special characters in the password.
