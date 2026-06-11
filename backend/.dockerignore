@@ -1,0 +1,6 @@
+.venv/
+.env
+forge.db
+uploads/
+__pycache__/
+*.pyc
