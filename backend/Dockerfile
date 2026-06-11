@@ -11,5 +11,5 @@ COPY app ./app
 RUN mkdir -p uploads
 
 EXPOSE 8000
-# Bind :: so Railway private networking (IPv6) can reach the service
-CMD uvicorn app.main:app --host :: --port ${PORT:-8000}
+# Railway's healthchecks and public edge reach the container over IPv4
+CMD uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}
