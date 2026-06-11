@@ -53,6 +53,7 @@ npm run dev
 | `GET /api/admin/stats` | Per-module draft/scheduled/published counts (drives the sidebar) |
 | `GET/DELETE /api/admin/media[/{name}]` | Media library — list uploads (`search`, `type=image\|file`, paging) / delete a file |
 | `GET/PUT /api/admin/settings/profile` | User profile settings (name, email, title, bio, avatar) |
+| `GET/POST /api/admin/settings/users` · `PUT/DELETE /api/admin/settings/users/{id}` | User management — roles (`admin, editor, author, viewer`) and status (`active, invited, suspended`) |
 
 All timestamps are stored as naive UTC; the frontend converts to/from local
 time for display and the schedule picker.
@@ -71,8 +72,11 @@ Each content module is a dropdown in the sidebar: **Create New** (opens the
 editor), **Drafts** and **Published** (3×3 tile grids with pagination and
 search), and **Scheduled**, which appears automatically whenever that module
 has scheduled items. The Workspace section holds the **Media Library** (browse,
-upload, copy URL, delete all uploaded files) and **Settings** (user profile:
-name, email, title, bio, avatar).
+upload, copy URL, delete all uploaded files) and **Settings**, which has two
+tabs: **Profile Settings** (name, email, title, bio, avatar) and **User
+Management** (add/remove team members, change roles — Admin, Editor, Author,
+Viewer — and toggle status between active, invited and suspended). Roles are
+stored but not yet enforced; that requires adding authentication.
 
 ## Editor
 

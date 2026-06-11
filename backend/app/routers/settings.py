@@ -1,12 +1,12 @@
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import Profile
+from ..models import ROLES, USER_STATUSES, Profile, User
 
 router = APIRouter(prefix="/api/admin/settings", tags=["settings"])
 
@@ -49,3 +49,104 @@ def update_profile(payload: ProfileIn, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(profile)
     return profile
+
+
+# ---------- User management ----------
+
+
+class UserIn(BaseModel):
+    name: str
+    email: str
+    role: str = "author"
+    status: str = "active"
+    avatar_url: str = ""
+
+
+class UserUpdate(BaseModel):
+    name: Optional[str] = None
+    email: Optional[str] = None
+    role: Optional[str] = None
+    status: Optional[str] = None
+    avatar_url: Optional[str] = None
+
+
+class UserOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+    email: str
+    role: str
+    status: str
+    avatar_url: str
+    created_at: datetime
+    updated_at: datetime
+
+
+def validate_user_fields(
+    db: Session,
+    email: Optional[str] = None,
+    role: Optional[str] = None,
+    status: Optional[str] = None,
+    exclude_id: Optional[int] = None,
+):
+    if role is not None and role not in ROLES:
+        raise HTTPException(status_code=422, detail=f"Role must be one of: {', '.join(ROLES)}")
+    if status is not None and status not in USER_STATUSES:
+        raise HTTPException(
+            status_code=422, detail=f"Status must be one of: {', '.join(USER_STATUSES)}"
+        )
+    if email is not None:
+        if "@" not in email or "." not in email.split("@")[-1]:
+            raise HTTPException(status_code=422, detail="Invalid email address")
+        q = db.query(User).filter(User.email == email)
+        if exclude_id is not None:
+            q = q.filter(User.id != exclude_id)
+        if q.first():
+            raise HTTPException(status_code=409, detail="A user with this email already exists")
+
+
+@router.get("/users", response_model=List[UserOut])
+def list_users(db: Session = Depends(get_db)):
+    return db.query(User).order_by(User.created_at.asc()).all()
+
+
+@router.post("/users", response_model=UserOut, status_code=201)
+def create_user(payload: UserIn, db: Session = Depends(get_db)):
+    if not payload.name.strip():
+        raise HTTPException(status_code=422, detail="Name is required")
+    validate_user_fields(db, email=payload.email, role=payload.role, status=payload.status)
+    user = User(**payload.model_dump())
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@router.put("/users/{user_id}", response_model=UserOut)
+def update_user(user_id: int, payload: UserUpdate, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    data = payload.model_dump(exclude_unset=True)
+    validate_user_fields(
+        db,
+        email=data.get("email"),
+        role=data.get("role"),
+        status=data.get("status"),
+        exclude_id=user_id,
+    )
+    for key, value in data.items():
+        setattr(user, key, value)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@router.delete("/users/{user_id}", status_code=204)
+def delete_user(user_id: int, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    db.delete(user)
+    db.commit()

@@ -46,6 +46,25 @@ class ContentItem(Base):
     )
 
 
+ROLES = ("admin", "editor", "author", "viewer")
+USER_STATUSES = ("active", "invited", "suspended")
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    name: Mapped[str] = mapped_column(String(120))
+    email: Mapped[str] = mapped_column(String(200), unique=True, index=True)
+    role: Mapped[str] = mapped_column(String(20), default="author")
+    status: Mapped[str] = mapped_column(String(20), default="active")
+    avatar_url: Mapped[str] = mapped_column(String(500), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+
 class Profile(Base):
     """Single-row table holding the CMS user's profile settings."""
 
