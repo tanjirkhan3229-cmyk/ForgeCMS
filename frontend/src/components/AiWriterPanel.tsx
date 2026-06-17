@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { BookOpen, Loader2, Sparkles } from 'lucide-react'
+import { BookOpen, Loader2, Sparkles, Wand2 } from 'lucide-react'
 import type { AiDraft, Module } from '../lib/api'
 import { aiApi } from '../lib/api'
 
@@ -21,6 +21,7 @@ export default function AiWriterPanel({ module, onDraft }: Props) {
   const [tone, setTone] = useState('professional')
   const [length, setLength] = useState('medium')
   const [useKnowledge, setUseKnowledge] = useState(true)
+  const [useHouseTone, setUseHouseTone] = useState(true)
   const [generating, setGenerating] = useState(false)
   const [error, setError] = useState('')
   const [result, setResult] = useState<{ model: string; sources: string[] } | null>(null)
@@ -34,7 +35,14 @@ export default function AiWriterPanel({ module, onDraft }: Props) {
     setError('')
     setResult(null)
     try {
-      const draft = await aiApi.generate({ prompt, module, tone, length, use_knowledge: useKnowledge })
+      const draft = await aiApi.generate({
+        prompt,
+        module,
+        tone,
+        length,
+        use_knowledge: useKnowledge,
+        use_house_tone: useHouseTone,
+      })
       setResult({ model: draft.model, sources: draft.sources })
       onDraft(draft)
     } catch (e) {
@@ -97,6 +105,20 @@ export default function AiWriterPanel({ module, onDraft }: Props) {
           type="checkbox"
           checked={useKnowledge}
           onChange={(e) => setUseKnowledge(e.target.checked)}
+          disabled={generating}
+          className="h-4 w-4 accent-indigo-600"
+        />
+      </label>
+
+      <label className="flex cursor-pointer items-center justify-between rounded-lg border border-zinc-200 px-3 py-2.5">
+        <span className="flex items-center gap-2 text-sm text-zinc-600">
+          <Wand2 size={14} className="text-indigo-500" />
+          Match house tone
+        </span>
+        <input
+          type="checkbox"
+          checked={useHouseTone}
+          onChange={(e) => setUseHouseTone(e.target.checked)}
           disabled={generating}
           className="h-4 w-4 accent-indigo-600"
         />

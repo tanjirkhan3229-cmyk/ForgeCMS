@@ -7,8 +7,9 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import KnowledgeDoc
+from ..models import TONE_GUIDE_KEY, KnowledgeDoc
 from ..openrouter import chat
+from ..settings_store import get_setting
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])
 
@@ -49,6 +50,15 @@ contradict it.
 WORKSPACE KNOWLEDGE BASE:
 {context}"""
 
+STYLE_PREAMBLE = """
+
+HOUSE WRITING STYLE — follow this for voice, rhythm, structure and formatting.
+It governs HOW you write, not WHAT is true: never let it introduce facts, claims,
+statistics or company/product names into the article. It does not override the
+knowledge base above for any factual matter.
+
+{guide}"""
+
 
 class GenerateIn(BaseModel):
     prompt: str
@@ -56,6 +66,7 @@ class GenerateIn(BaseModel):
     tone: str = "professional"
     length: str = "medium"
     use_knowledge: bool = True
+    use_house_tone: bool = True
 
 
 class GenerateOut(BaseModel):
@@ -128,6 +139,11 @@ async def generate(payload: GenerateIn, db: Session = Depends(get_db)):
         context, sources = select_relevant(db, payload.prompt)
         if context:
             system += KNOWLEDGE_PREAMBLE.format(context=context)
+
+    if payload.use_house_tone:
+        guide = get_setting(db, TONE_GUIDE_KEY).strip()
+        if guide:
+            system += STYLE_PREAMBLE.format(guide=guide)
 
     content, model = await chat(
         [
