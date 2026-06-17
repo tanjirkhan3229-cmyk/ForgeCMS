@@ -19,3 +19,6 @@ frontend/dist/
 # Secrets
 backend/.env
 backend/.forgecms-secret
+
+# Tone-guide source corpus (research artifact; distilled into the app, not committed)
+Competitor Blogs/

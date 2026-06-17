@@ -6,7 +6,8 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import ROLES, USER_STATUSES, Profile, User
+from ..models import ROLES, TONE_GUIDE_KEY, USER_STATUSES, Profile, Setting, User
+from ..settings_store import set_setting
 
 router = APIRouter(prefix="/api/admin/settings", tags=["settings"])
 
@@ -49,6 +50,32 @@ def update_profile(payload: ProfileIn, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(profile)
     return profile
+
+
+# ---------- Tone / house-style guide ----------
+
+
+class ToneGuideIn(BaseModel):
+    value: str = ""
+
+
+class ToneGuideOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    value: str = ""
+    updated_at: Optional[datetime] = None
+
+
+@router.get("/tone-guide", response_model=ToneGuideOut)
+def read_tone_guide(db: Session = Depends(get_db)):
+    row = db.query(Setting).filter(Setting.key == TONE_GUIDE_KEY).first()
+    return ToneGuideOut(value=row.value if row else "", updated_at=row.updated_at if row else None)
+
+
+@router.put("/tone-guide", response_model=ToneGuideOut)
+def update_tone_guide(payload: ToneGuideIn, db: Session = Depends(get_db)):
+    row = set_setting(db, TONE_GUIDE_KEY, payload.value.strip())
+    return ToneGuideOut(value=row.value, updated_at=row.updated_at)
 
 
 # ---------- User management ----------

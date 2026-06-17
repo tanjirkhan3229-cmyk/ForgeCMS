@@ -51,6 +51,29 @@ def migrate_schema():
 migrate_schema()
 
 
+def seed_tone_guide():
+    """Populate the default house-style guide on first run only.
+
+    Seeding when the row is absent (rather than when it's empty) means an admin
+    who clears the guide in the UI keeps it cleared across restarts.
+    """
+    from .database import SessionLocal
+    from .default_tone_guide import DEFAULT_TONE_GUIDE
+    from .models import TONE_GUIDE_KEY, Setting
+
+    db = SessionLocal()
+    try:
+        exists = db.query(Setting).filter(Setting.key == TONE_GUIDE_KEY).first()
+        if not exists:
+            db.add(Setting(key=TONE_GUIDE_KEY, value=DEFAULT_TONE_GUIDE))
+            db.commit()
+    finally:
+        db.close()
+
+
+seed_tone_guide()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     task = asyncio.create_task(scheduler_loop())

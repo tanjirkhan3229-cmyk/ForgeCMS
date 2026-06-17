@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Camera, Check, Loader2, User, Users } from 'lucide-react'
+import { Camera, Check, Loader2, RotateCcw, User, Users, Wand2 } from 'lucide-react'
 import type { Profile } from '../../lib/api'
 import { formatDate, settingsApi, uploadFile } from '../../lib/api'
 import UserManagement from './UserManagement'
@@ -15,13 +15,17 @@ const EMPTY: Omit<Profile, 'updated_at'> = {
 
 const TABS = [
   { key: 'profile', label: 'Profile Settings', icon: User },
+  { key: 'style', label: 'Writing Style', icon: Wand2 },
   { key: 'users', label: 'User Management', icon: Users },
 ] as const
 
+type TabKey = (typeof TABS)[number]['key']
+
 export default function SettingsPage() {
   const [params, setParams] = useSearchParams()
-  const tab = params.get('tab') === 'users' ? 'users' : 'profile'
-  const setTab = (key: 'profile' | 'users') =>
+  const requested = params.get('tab')
+  const tab: TabKey = requested === 'users' || requested === 'style' ? requested : 'profile'
+  const setTab = (key: TabKey) =>
     setParams(key === 'profile' ? {} : { tab: key }, { replace: true })
 
   return (
@@ -48,7 +52,114 @@ export default function SettingsPage() {
         ))}
       </div>
 
-      {tab === 'profile' ? <ProfileSettings /> : <UserManagement />}
+      {tab === 'profile' ? <ProfileSettings /> : tab === 'style' ? <WritingStyleSettings /> : <UserManagement />}
+    </div>
+  )
+}
+
+function WritingStyleSettings() {
+  const [value, setValue] = useState('')
+  const [initial, setInitial] = useState('')
+  const [updatedAt, setUpdatedAt] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    settingsApi
+      .getToneGuide()
+      .then((g) => {
+        setValue(g.value)
+        setInitial(g.value)
+        setUpdatedAt(g.updated_at)
+      })
+      .catch((e) => setError((e as Error).message))
+      .finally(() => setLoading(false))
+  }, [])
+
+  const save = async () => {
+    setSaving(true)
+    setError('')
+    try {
+      const g = await settingsApi.updateToneGuide(value)
+      setValue(g.value)
+      setInitial(g.value)
+      setUpdatedAt(g.updated_at)
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2000)
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex h-96 items-center justify-center text-sm text-zinc-400">
+        <Loader2 size={18} className="mr-2 animate-spin" /> Loading…
+      </div>
+    )
+  }
+
+  const dirty = value !== initial
+
+  return (
+    <div>
+      {error && (
+        <div className="mb-4 max-w-3xl rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700">
+          {error}
+        </div>
+      )}
+
+      <div className="max-w-3xl rounded-xl border border-zinc-200 bg-white">
+        <div className="border-b border-zinc-100 px-6 py-4">
+          <h2 className="font-semibold">House writing style</h2>
+          <p className="mt-0.5 text-sm text-zinc-500">
+            A style guide the AI writer follows for voice, structure and formatting on every
+            draft when “Match house tone” is on. It shapes <em>how</em> articles read — facts still
+            come from the knowledge base. Edit it freely to fine-tune the voice.
+          </p>
+        </div>
+
+        <div className="px-6 py-6">
+          <textarea
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            rows={22}
+            placeholder="Describe the voice, structure and formatting the AI should follow…"
+            className="w-full resize-y rounded-lg border border-zinc-200 px-3 py-2 font-mono text-xs leading-relaxed outline-none focus:border-zinc-400"
+          />
+          {!value.trim() && (
+            <p className="mt-2 text-xs text-zinc-400">
+              Empty — the AI writer will fall back to the basic tone selector only.
+            </p>
+          )}
+        </div>
+
+        <div className="flex items-center justify-between border-t border-zinc-100 px-6 py-4">
+          <span className="flex items-center gap-3 text-xs text-zinc-400">
+            {updatedAt ? `Last updated ${formatDate(updatedAt, true)}` : ''}
+            {dirty && (
+              <button
+                onClick={() => setValue(initial)}
+                className="inline-flex items-center gap-1 font-medium text-zinc-500 hover:text-zinc-900"
+              >
+                <RotateCcw size={12} /> Revert
+              </button>
+            )}
+          </span>
+          <button
+            onClick={save}
+            disabled={saving || !dirty}
+            className="inline-flex items-center gap-2 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:opacity-50"
+          >
+            {saving ? <Loader2 size={14} className="animate-spin" /> : saved ? <Check size={14} /> : null}
+            {saved ? 'Saved' : 'Save changes'}
+          </button>
+        </div>
+      </div>
     </div>
   )
 }

@@ -66,6 +66,21 @@ class KnowledgeDoc(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
+# Workspace-wide settings that aren't tied to a user profile, kept in a simple
+# key/value table so adding a new setting doesn't require a schema migration.
+TONE_GUIDE_KEY = "tone_guide"
+
+
+class Setting(Base):
+    __tablename__ = "settings"
+
+    key: Mapped[str] = mapped_column(String(100), primary_key=True)
+    value: Mapped[str] = mapped_column(Text, default="")
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+
 ROLES = ("admin", "editor", "author", "viewer")
 USER_STATUSES = ("active", "invited", "suspended")
 

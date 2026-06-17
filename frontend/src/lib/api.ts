@@ -278,6 +278,14 @@ export const settingsApi = {
     request<CmsUser>(`/api/admin/settings/users/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteUser: (id: number) =>
     request<void>(`/api/admin/settings/users/${id}`, { method: 'DELETE' }),
+  getToneGuide: () => request<ToneGuide>('/api/admin/settings/tone-guide'),
+  updateToneGuide: (value: string) =>
+    request<ToneGuide>('/api/admin/settings/tone-guide', { method: 'PUT', body: JSON.stringify({ value }) }),
+}
+
+export interface ToneGuide {
+  value: string
+  updated_at: string | null
 }
 
 export interface AiDraft {
@@ -298,6 +306,7 @@ export const aiApi = {
     tone: string
     length: string
     use_knowledge: boolean
+    use_house_tone: boolean
   }) => request<AiDraft>('/api/ai/generate', { method: 'POST', body: JSON.stringify(data) }),
 }
 
