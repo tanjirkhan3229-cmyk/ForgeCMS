@@ -20,6 +20,7 @@ write_roles = [Depends(require_role("admin", "editor"))]
 
 ALLOWED_EXTENSIONS = {".md", ".markdown", ".txt"}
 MAX_SIZE = 2 * 1024 * 1024  # 2 MB of text
+CHUNK_SIZE = 1024 * 1024  # 1 MB
 ANALYSIS_CHAR_LIMIT = 12000
 
 ANALYSIS_PROMPT = """Analyze the following document and respond with ONLY a JSON object:
@@ -62,9 +63,14 @@ async def upload_document(file: UploadFile = File(...), db: Session = Depends(ge
     if ext not in ALLOWED_EXTENSIONS:
         raise HTTPException(status_code=422, detail="Only .md and .txt files are supported")
 
-    raw = await file.read()
-    if len(raw) > MAX_SIZE:
-        raise HTTPException(status_code=413, detail="File exceeds the 2 MB limit")
+    # Read in fixed chunks, enforcing the cap as we go so an oversized file is
+    # rejected without buffering unbounded input into memory.
+    buf = bytearray()
+    while chunk := await file.read(CHUNK_SIZE):
+        buf += chunk
+        if len(buf) > MAX_SIZE:
+            raise HTTPException(status_code=413, detail="File exceeds the 2 MB limit")
+    raw = bytes(buf)
     text = raw.decode("utf-8", errors="replace").strip()
     if not text:
         raise HTTPException(status_code=422, detail="The file is empty")
