@@ -92,8 +92,8 @@ export const ROLE_LABELS: Record<Role, string> = {
 
 export const ROLE_DESCRIPTIONS: Record<Role, string> = {
   admin: 'Full access — content, media, users and settings',
-  editor: 'Create, edit, publish and schedule all content',
-  author: 'Create and edit their own drafts',
+  editor: 'Create, edit, publish, schedule and delete content; manage media and knowledge',
+  author: 'Create and edit content — cannot publish, schedule, duplicate or delete',
   viewer: 'Read-only access to the studio',
 }
 

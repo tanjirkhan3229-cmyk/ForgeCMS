@@ -98,6 +98,24 @@ def require_auth(
     return user
 
 
+def require_role(*allowed: str):
+    """Dependency factory: require an authenticated user whose role is in `allowed`.
+
+    Use as a route dependency, e.g.
+        dependencies=[Depends(require_role("admin", "editor"))]
+    Read/list endpoints stay open to every authenticated role; only writes and
+    deletes should be wrapped in this. Returns 403 for an authenticated user
+    whose role isn't permitted.
+    """
+
+    def dep(user: User = Depends(require_auth)) -> User:
+        if user.role not in allowed:
+            raise HTTPException(status_code=403, detail="Insufficient permissions")
+        return user
+
+    return dep
+
+
 # ---------- endpoints ----------
 
 

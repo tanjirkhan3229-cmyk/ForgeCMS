@@ -11,8 +11,12 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models import KnowledgeDoc
 from ..openrouter import chat
+from .auth import require_role
 
 router = APIRouter(prefix="/api/admin/knowledge", tags=["knowledge"])
+
+# Knowledge-base writes are reserved for editors and admins.
+write_roles = [Depends(require_role("admin", "editor"))]
 
 ALLOWED_EXTENSIONS = {".md", ".markdown", ".txt"}
 MAX_SIZE = 2 * 1024 * 1024  # 2 MB of text
@@ -51,7 +55,7 @@ async def analyze(doc: KnowledgeDoc) -> None:
     doc.keywords = [str(k) for k in keywords] if isinstance(keywords, list) else []
 
 
-@router.post("", response_model=KnowledgeOut, status_code=201)
+@router.post("", response_model=KnowledgeOut, status_code=201, dependencies=write_roles)
 async def upload_document(file: UploadFile = File(...), db: Session = Depends(get_db)):
     name = file.filename or "document.txt"
     ext = os.path.splitext(name)[1].lower()
@@ -90,7 +94,7 @@ def read_document(doc_id: int, db: Session = Depends(get_db)):
     return doc
 
 
-@router.post("/{doc_id}/reanalyze", response_model=KnowledgeOut)
+@router.post("/{doc_id}/reanalyze", response_model=KnowledgeOut, dependencies=write_roles)
 async def reanalyze_document(doc_id: int, db: Session = Depends(get_db)):
     doc = db.query(KnowledgeDoc).filter(KnowledgeDoc.id == doc_id).first()
     if not doc:
@@ -106,7 +110,7 @@ async def reanalyze_document(doc_id: int, db: Session = Depends(get_db)):
     return doc
 
 
-@router.delete("/{doc_id}", status_code=204)
+@router.delete("/{doc_id}", status_code=204, dependencies=write_roles)
 def delete_document(doc_id: int, db: Session = Depends(get_db)):
     doc = db.query(KnowledgeDoc).filter(KnowledgeDoc.id == doc_id).first()
     if not doc:

@@ -3,8 +3,10 @@ import os
 from datetime import datetime
 from typing import List, Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
+
+from .auth import require_role
 
 router = APIRouter(prefix="/api/admin/media", tags=["media"])
 
@@ -76,7 +78,11 @@ def list_media(
     )
 
 
-@router.delete("/{name}", status_code=204)
+@router.delete(
+    "/{name}",
+    status_code=204,
+    dependencies=[Depends(require_role("admin", "editor"))],
+)
 def delete_media(name: str):
     # Reject anything that is not a plain filename inside the uploads dir.
     if os.path.basename(name) != name or name.startswith("."):

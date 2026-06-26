@@ -16,8 +16,15 @@ from ..schemas import (
     ScheduleIn,
     StatsOut,
 )
+from .auth import require_role
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
+
+# Authors may create and edit content; publishing, scheduling, duplicating and
+# deleting are reserved for editors and admins. Content has no per-author
+# ownership field, so authors aren't restricted to their own items.
+EDIT_ROLES = ("admin", "editor", "author")
+MANAGE_ROLES = ("admin", "editor")
 
 MODULE_PATH = Path(..., pattern=MODULE_PATTERN)
 
@@ -103,7 +110,12 @@ def list_items(
     return ContentList(items=items, total=total, page=page, page_size=page_size)
 
 
-@router.post("/{module}", response_model=ContentOut, status_code=201)
+@router.post(
+    "/{module}",
+    response_model=ContentOut,
+    status_code=201,
+    dependencies=[Depends(require_role(*EDIT_ROLES))],
+)
 def create_item(
     payload: ContentCreate,
     module: str = MODULE_PATH,
@@ -138,7 +150,11 @@ def read_item(
     return get_item(db, module, item_id)
 
 
-@router.put("/{module}/{item_id}", response_model=ContentOut)
+@router.put(
+    "/{module}/{item_id}",
+    response_model=ContentOut,
+    dependencies=[Depends(require_role(*EDIT_ROLES))],
+)
 def update_item(
     payload: ContentUpdate,
     module: str = MODULE_PATH,
@@ -161,7 +177,11 @@ def update_item(
     return item
 
 
-@router.delete("/{module}/{item_id}", status_code=204)
+@router.delete(
+    "/{module}/{item_id}",
+    status_code=204,
+    dependencies=[Depends(require_role(*MANAGE_ROLES))],
+)
 def delete_item(
     module: str = MODULE_PATH,
     item_id: int = Path(...),
@@ -172,7 +192,11 @@ def delete_item(
     db.commit()
 
 
-@router.post("/{module}/{item_id}/publish", response_model=ContentOut)
+@router.post(
+    "/{module}/{item_id}/publish",
+    response_model=ContentOut,
+    dependencies=[Depends(require_role(*MANAGE_ROLES))],
+)
 def publish_item(
     module: str = MODULE_PATH,
     item_id: int = Path(...),
@@ -187,7 +211,11 @@ def publish_item(
     return item
 
 
-@router.post("/{module}/{item_id}/unpublish", response_model=ContentOut)
+@router.post(
+    "/{module}/{item_id}/unpublish",
+    response_model=ContentOut,
+    dependencies=[Depends(require_role(*MANAGE_ROLES))],
+)
 def unpublish_item(
     module: str = MODULE_PATH,
     item_id: int = Path(...),
@@ -201,7 +229,11 @@ def unpublish_item(
     return item
 
 
-@router.post("/{module}/{item_id}/schedule", response_model=ContentOut)
+@router.post(
+    "/{module}/{item_id}/schedule",
+    response_model=ContentOut,
+    dependencies=[Depends(require_role(*MANAGE_ROLES))],
+)
 def schedule_item(
     payload: ScheduleIn,
     module: str = MODULE_PATH,
@@ -216,7 +248,12 @@ def schedule_item(
     return item
 
 
-@router.post("/{module}/{item_id}/duplicate", response_model=ContentOut, status_code=201)
+@router.post(
+    "/{module}/{item_id}/duplicate",
+    response_model=ContentOut,
+    status_code=201,
+    dependencies=[Depends(require_role(*MANAGE_ROLES))],
+)
 def duplicate_item(
     module: str = MODULE_PATH,
     item_id: int = Path(...),
