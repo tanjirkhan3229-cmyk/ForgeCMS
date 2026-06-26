@@ -180,7 +180,7 @@ export default function EditorPage() {
   const onCoverPicked = async (file: File | undefined) => {
     if (!file) return
     try {
-      const res = await uploadFile(file)
+      const res = await uploadFile(file, 'image')
       setForm((f) => ({ ...f, cover_image: res.url }))
     } catch (e) {
       setError(`Cover upload failed: ${(e as Error).message}`)
@@ -209,7 +209,7 @@ export default function EditorPage() {
   const onResourcePicked = async (file: File | undefined) => {
     if (!file) return
     try {
-      const res = await uploadFile(file)
+      const res = await uploadFile(file, 'resource')
       setForm((f) => ({
         ...f,
         file_url: res.url,
