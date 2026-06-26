@@ -13,7 +13,7 @@ body {
 
 /* ---------- TipTap editor ---------- */
 .tiptap {
-  @apply min-h-[420px] px-6 py-5 outline-none;
+  @apply min-h-full px-6 py-5 outline-none;
 }
 
 .tiptap > * + * {
@@ -37,7 +37,6 @@ body {
 .tiptap img { @apply max-w-full rounded-lg; }
 .tiptap img.ProseMirror-selectednode { @apply ring-2 ring-indigo-500; }
 .tiptap hr { @apply my-6 border-zinc-200; }
-.tiptap a { @apply text-indigo-600 underline; }
 .tiptap mark { @apply rounded-sm px-0.5; }
 
 .tiptap table {
@@ -73,6 +72,24 @@ body {
 .tiptap .hljs-title, .tiptap .hljs-name { color: #61afef; }
 .tiptap .hljs-comment { color: #7f848e; font-style: italic; }
 .tiptap .hljs-built_in { color: #e6c07b; }
+
+/* ---------- Links (editor + rendered content) ---------- */
+/* Element selectors so existing saved content is covered, not just new links. */
+.tiptap a,
+.article-body a {
+  @apply font-medium text-indigo-600 underline decoration-2 underline-offset-2;
+}
+.tiptap a:hover,
+.article-body a:hover {
+  @apply text-indigo-700;
+}
+/* Class carried by newly inserted links for semantics. */
+.content-link {
+  @apply font-medium text-indigo-600 underline decoration-2 underline-offset-2;
+}
+.content-link:hover {
+  @apply text-indigo-700;
+}
 
 /* ---------- Public article body ---------- */
 .article-body div[data-youtube-video] iframe,

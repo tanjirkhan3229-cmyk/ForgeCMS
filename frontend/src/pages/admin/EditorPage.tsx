@@ -329,14 +329,14 @@ export default function EditorPage() {
         </div>
       )}
 
-      <div className="flex items-start gap-6">
+      <div className="flex h-[calc(100vh-8.5rem)] items-stretch gap-6">
         {/* Main column: title + editor in one card */}
-        <div className="min-w-0 flex-1 overflow-hidden rounded-xl border border-zinc-200 bg-white">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white">
           <input
             value={form.title}
             onChange={set('title')}
             placeholder={isFaq ? 'Question, e.g. “How do I reset my password?”' : 'Title'}
-            className="w-full border-b border-zinc-100 bg-transparent px-6 py-5 text-2xl font-bold tracking-tight outline-none placeholder:text-zinc-300"
+            className="w-full shrink-0 border-b border-zinc-100 bg-transparent px-6 py-5 text-2xl font-bold tracking-tight outline-none placeholder:text-zinc-300"
           />
           {editorReady && (
             <TiptapEditor
@@ -355,8 +355,8 @@ export default function EditorPage() {
         </div>
 
         {/* Side rail: one card, three tabs */}
-        <aside className="sticky top-6 w-80 shrink-0 self-start rounded-xl border border-zinc-200 bg-white">
-          <div className="border-b border-zinc-100 p-2">
+        <aside className="flex min-h-0 w-80 shrink-0 flex-col self-stretch overflow-hidden rounded-xl border border-zinc-200 bg-white">
+          <div className="shrink-0 border-b border-zinc-100 p-2">
             <div className="grid grid-cols-3 gap-1 rounded-lg bg-zinc-100 p-1">
               {(
                 [
@@ -380,7 +380,7 @@ export default function EditorPage() {
             </div>
           </div>
 
-          <div className="max-h-[calc(100vh-12rem)] space-y-4 overflow-y-auto p-4">
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
             {sideTab === 'details' && (
               <>
                 {module === 'resources' && (
