@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models import MODULE_PATTERN, MODULES, STATUSES, ContentItem
+from ..sanitize import sanitize_html
 from ..schemas import (
     ContentCreate,
     ContentList,
@@ -131,6 +132,9 @@ def create_item(
         status=payload.status,
         publish_at=payload.publish_at,
     )
+    # Public pages render content_html as raw HTML, so strip any script/handlers
+    # before it is ever persisted.
+    item.content_html = sanitize_html(item.content_html)
     if item.status == "published":
         item.published_at = datetime.utcnow()
     if item.status == "scheduled" and not item.publish_at:
@@ -165,6 +169,8 @@ def update_item(
     data = payload.model_dump(exclude_unset=True)
     if "slug" in data and data["slug"]:
         data["slug"] = unique_slug(db, module, slugify(data["slug"]), exclude_id=item.id)
+    if "content_html" in data:
+        data["content_html"] = sanitize_html(data["content_html"])
     new_status = data.get("status")
     if new_status and new_status not in STATUSES:
         raise HTTPException(status_code=422, detail="Invalid status")
