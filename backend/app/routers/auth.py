@@ -177,8 +177,14 @@ async def login(payload: LoginIn, db: Session = Depends(get_db)):
         db.add(user)
         db.commit()
         db.refresh(user)
-    elif user.status != "active":
+    elif user.status == "suspended":
         raise HTTPException(status_code=401, detail="Account is suspended")
+    elif user.status != "active":
+        # A pre-created user (e.g. status "invited") accepts the invite by
+        # logging in successfully with valid Supabase credentials.
+        user.status = "active"
+        db.commit()
+        db.refresh(user)
 
     return LoginOut(token=make_token(user.email), user=UserOut.model_validate(user))
 
