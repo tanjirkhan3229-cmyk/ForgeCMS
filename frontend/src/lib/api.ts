@@ -44,6 +44,11 @@ export interface ModuleStats {
 
 export type OverviewStats = Record<Module, ModuleStats>
 
+export interface DashboardStats {
+  published_this_week: number
+  resource_downloads: number
+}
+
 export interface MediaFile {
   name: string
   url: string
@@ -211,6 +216,7 @@ export const adminApi = {
   },
   stats: (module: Module) => request<ModuleStats>(`/api/admin/${module}/stats`),
   overviewStats: () => request<OverviewStats>('/api/admin/stats'),
+  dashboard: () => request<DashboardStats>('/api/admin/dashboard'),
   get: (module: Module, id: number) => request<ContentItem>(`/api/admin/${module}/${id}`),
   create: (module: Module, data: Partial<ContentItem>) =>
     request<ContentItem>(`/api/admin/${module}`, { method: 'POST', body: JSON.stringify(data) }),

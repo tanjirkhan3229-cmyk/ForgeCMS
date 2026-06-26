@@ -13,7 +13,7 @@ import {
   Plus,
   TrendingUp,
 } from 'lucide-react'
-import type { ContentItem, Module, OverviewStats } from '../../lib/api'
+import type { ContentItem, DashboardStats, Module, OverviewStats } from '../../lib/api'
 import { adminApi, formatDate, MODULE_LABELS, MODULE_SINGULAR } from '../../lib/api'
 import StatusBadge from '../../components/StatusBadge'
 
@@ -24,26 +24,17 @@ const MODULES: { module: Module; icon: typeof FileText }[] = [
   { module: 'faqs', icon: HelpCircle },
 ]
 
-const WEEK_MS = 7 * 24 * 3600 * 1000
-
-function publishedWithinWeek(items: ContentItem[]): number {
-  const cutoff = Date.now() - WEEK_MS
-  return items.filter((i) => {
-    if (!i.published_at) return false
-    const ts = new Date(i.published_at.endsWith('Z') ? i.published_at : i.published_at + 'Z').getTime()
-    return ts >= cutoff
-  }).length
-}
-
 export default function DashboardPage() {
   const [stats, setStats] = useState<OverviewStats | null>(null)
+  const [dashboard, setDashboard] = useState<DashboardStats | null>(null)
   const [recent, setRecent] = useState<ContentItem[]>([])
-  const [publishedItems, setPublishedItems] = useState<ContentItem[]>([])
-  const [resources, setResources] = useState<ContentItem[]>([])
 
   useEffect(() => {
     adminApi.overviewStats().then(setStats).catch(() => {})
-    // One page per module is enough for weekly counts and the activity feed.
+    // Weekly published count and total downloads come from whole-table SQL
+    // aggregates, so they stay accurate regardless of item count or order.
+    adminApi.dashboard().then(setDashboard).catch(() => {})
+    // One page per module is enough for the recent-activity feed.
     Promise.all(MODULES.map(({ module }) => adminApi.list(module, { page_size: 50 })))
       .then((lists) => {
         const all = lists.flatMap((l) => l.items)
@@ -52,8 +43,6 @@ export default function DashboardPage() {
             .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
             .slice(0, 8),
         )
-        setPublishedItems(all.filter((i) => i.status === 'published'))
-        setResources(all.filter((i) => i.module === 'resources'))
       })
       .catch(() => {})
   }, [])
@@ -70,8 +59,8 @@ export default function DashboardPage() {
     )
   }, [stats])
 
-  const weekCount = publishedWithinWeek(publishedItems)
-  const downloads = resources.reduce((sum, r) => sum + r.download_count, 0)
+  const weekCount = dashboard?.published_this_week ?? 0
+  const downloads = dashboard?.resource_downloads ?? 0
 
   return (
     <div className="p-8">

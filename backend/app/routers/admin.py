@@ -1,9 +1,9 @@
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from ..database import get_db
@@ -14,6 +14,7 @@ from ..schemas import (
     ContentList,
     ContentOut,
     ContentUpdate,
+    DashboardOut,
     ScheduleIn,
     StatsOut,
 )
@@ -73,6 +74,32 @@ def overview_stats(db: Session = Depends(get_db)):
             "total": base.count(),
         }
     return out
+
+
+# Literal path — must precede the /{module} routes so it isn't captured as a module.
+@router.get("/dashboard", response_model=DashboardOut)
+def dashboard_stats(db: Session = Depends(get_db)):
+    """Authoritative dashboard aggregates, computed in SQL over the whole table.
+
+    The dashboard previously derived these from one 50-item page per module, so
+    both undercounted once a module grew past a page or the top downloads
+    weren't recently updated. These run against every row instead.
+    """
+    week_ago = datetime.utcnow() - timedelta(days=7)
+    published_this_week = (
+        db.query(func.count(ContentItem.id))
+        .filter(ContentItem.status == "published", ContentItem.published_at >= week_ago)
+        .scalar()
+    )
+    resource_downloads = (
+        db.query(func.coalesce(func.sum(ContentItem.download_count), 0))
+        .filter(ContentItem.module == "resources")
+        .scalar()
+    )
+    return DashboardOut(
+        published_this_week=int(published_this_week or 0),
+        resource_downloads=int(resource_downloads or 0),
+    )
 
 
 @router.get("/{module}/stats", response_model=StatsOut)
