@@ -332,9 +332,12 @@ export const knowledgeApi = {
   remove: (id: number) => request<void>(`/api/admin/knowledge/${id}`, { method: 'DELETE' }),
 }
 
-export async function uploadFile(file: File) {
+export type UploadKind = 'image' | 'resource' | 'any'
+
+export async function uploadFile(file: File, kind: UploadKind = 'any') {
   const form = new FormData()
   form.append('file', file)
+  form.append('kind', kind)
   return request<{ url: string; file_name: string; file_size: number; file_type: string }>(
     '/api/uploads',
     { method: 'POST', body: form },

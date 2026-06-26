@@ -2,7 +2,7 @@ import os
 import re
 import uuid
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
 from .auth import require_role
 
@@ -12,14 +12,44 @@ UPLOAD_DIR = "uploads"
 MAX_SIZE = 50 * 1024 * 1024  # 50 MB
 CHUNK_SIZE = 1024 * 1024  # 1 MB
 
-BLOCKED_EXTENSIONS = {".exe", ".sh", ".bat", ".cmd", ".com", ".scr", ".ps1"}
+# Uploads are served from the app origin via StaticFiles, so a stored file that
+# a browser will execute as markup (.html, .svg, .xml, ...) would run script in
+# our own origin and could read the localStorage auth token. We therefore use
+# allowlists, never a denylist: only inert, non-executable types are accepted.
+#
+# Raster images only — notably NOT .svg, which is XML a browser will script.
+IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".avif"}
+
+# Documents/archives that browsers do not execute. Explicitly excludes
+# html/htm/svg/xml/xhtml and any script type.
+RESOURCE_EXTENSIONS = {
+    ".pdf",
+    ".doc", ".docx",
+    ".xls", ".xlsx",
+    ".ppt", ".pptx",
+    ".odt", ".ods", ".odp",
+    ".csv", ".txt", ".md", ".rtf",
+    ".zip",
+}
+
+# Allowlist applied per upload context. "any" (the media library, which accepts
+# both images and documents) is the union of the two safe sets.
+ALLOWED_BY_KIND = {
+    "image": IMAGE_EXTENSIONS,
+    "resource": RESOURCE_EXTENSIONS,
+    "any": IMAGE_EXTENSIONS | RESOURCE_EXTENSIONS,
+}
 
 
 @router.post("", dependencies=[Depends(require_role("admin", "editor"))])
-async def upload_file(file: UploadFile = File(...)):
+async def upload_file(file: UploadFile = File(...), kind: str = Form("any")):
+    allowed = ALLOWED_BY_KIND.get(kind)
+    if allowed is None:
+        raise HTTPException(status_code=422, detail="Unknown upload kind")
+
     original = file.filename or "file"
     ext = os.path.splitext(original)[1].lower()
-    if ext in BLOCKED_EXTENSIONS:
+    if ext not in allowed:
         raise HTTPException(status_code=422, detail="File type not allowed")
 
     safe_stem = re.sub(r"[^a-zA-Z0-9_-]+", "-", os.path.splitext(original)[0])[:60]

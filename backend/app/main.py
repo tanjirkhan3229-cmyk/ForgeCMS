@@ -101,8 +101,26 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+class HardenedStaticFiles(StaticFiles):
+    """Serve /uploads defensively.
+
+    Even though uploads are extension-allowlisted on the way in, we harden the
+    way out too: ``X-Content-Type-Options: nosniff`` stops a browser from
+    MIME-sniffing a file into executable markup, and non-image files are sent
+    as ``attachment`` so a stored document can never render in the app origin.
+    """
+
+    async def get_response(self, path, scope):
+        response = await super().get_response(path, scope)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        ext = os.path.splitext(path)[1].lower()
+        if ext not in uploads.IMAGE_EXTENSIONS:
+            response.headers["Content-Disposition"] = "attachment"
+        return response
+
+
 os.makedirs("uploads", exist_ok=True)
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+app.mount("/uploads", HardenedStaticFiles(directory="uploads"), name="uploads")
 
 @app.get("/api/health")
 def health():

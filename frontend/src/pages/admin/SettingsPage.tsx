@@ -211,7 +211,7 @@ function ProfileSettings() {
   const onAvatarPicked = async (file: File | undefined) => {
     if (!file) return
     try {
-      const res = await uploadFile(file)
+      const res = await uploadFile(file, 'image')
       setForm((f) => ({ ...f, avatar_url: res.url }))
     } catch (e) {
       setError(`Avatar upload failed: ${(e as Error).message}`)

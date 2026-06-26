@@ -147,7 +147,7 @@ function Toolbar({ editor }: { editor: Editor }) {
   const onImagePicked = async (file: File | undefined) => {
     if (!file) return
     try {
-      const { url } = await uploadFile(file)
+      const { url } = await uploadFile(file, 'image')
       editor.chain().focus().setImage({ src: url }).run()
     } catch (e) {
       alert(`Image upload failed: ${(e as Error).message}`)
