@@ -78,7 +78,7 @@ export default function FaqPage() {
                     </button>
                     {open && (
                       <div
-                        className="prose prose-sm prose-zinc max-w-none px-5 pb-5 prose-a:text-indigo-600"
+                        className="article-body prose prose-sm prose-zinc max-w-none px-5 pb-5"
                         dangerouslySetInnerHTML={{ __html: faq.content_html }}
                       />
                     )}

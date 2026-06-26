@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { EditorContent, useEditor, type Editor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
@@ -42,6 +42,7 @@ import {
   ListOrdered,
   ListTodo,
   Minus,
+  MoreHorizontal,
   Quote,
   Redo2,
   SquareCode,
@@ -86,7 +87,11 @@ export default function TiptapEditor({
     extensions: [
       StarterKit.configure({ codeBlock: false }),
       Underline,
-      Link.configure({ openOnClick: false, autolink: true }),
+      Link.configure({
+        openOnClick: false,
+        autolink: true,
+        HTMLAttributes: { class: 'content-link', rel: 'noopener nofollow' },
+      }),
       Image.configure({ allowBase64: true }),
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
       Highlight.configure({ multicolor: true }),
@@ -114,10 +119,20 @@ export default function TiptapEditor({
   if (!editor) return null
 
   return (
-    <div className={embedded ? '' : 'overflow-hidden rounded-xl border border-zinc-200 bg-white'}>
-      <Toolbar editor={editor} />
-      <EditorContent editor={editor} />
-      <div className="flex justify-end border-t border-zinc-100 px-4 py-1.5 text-xs text-zinc-400">
+    <div
+      className={
+        embedded
+          ? 'flex min-h-0 flex-1 flex-col'
+          : 'flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white'
+      }
+    >
+      <div className="sticky top-0 z-10 shrink-0 bg-white">
+        <Toolbar editor={editor} />
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <EditorContent editor={editor} />
+      </div>
+      <div className="flex shrink-0 justify-end border-t border-zinc-100 bg-white px-4 py-1.5 text-xs text-zinc-400">
         {editor.storage.characterCount.words()} word{editor.storage.characterCount.words() === 1 ? '' : 's'} ·{' '}
         {editor.storage.characterCount.characters()} characters
       </div>
@@ -157,175 +172,264 @@ function Toolbar({ editor }: { editor: Editor }) {
   const inTable = editor.isActive('table')
 
   return (
-    <div className="flex flex-wrap items-center gap-0.5 border-b border-zinc-100 bg-zinc-50/60 px-2 py-1.5">
-      <Btn title="Undo" onClick={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo()}>
-        <Undo2 size={15} />
-      </Btn>
-      <Btn title="Redo" onClick={() => editor.chain().focus().redo().run()} disabled={!editor.can().redo()}>
-        <Redo2 size={15} />
-      </Btn>
-
-      <Divider />
-
-      <select
-        title="Font family"
-        className="h-7 rounded-md border border-transparent bg-transparent px-1 text-xs text-zinc-600 hover:border-zinc-200 focus:outline-none"
-        value={(editor.getAttributes('textStyle').fontFamily as string) ?? ''}
-        onChange={(e) => {
-          if (e.target.value) editor.chain().focus().setFontFamily(e.target.value).run()
-          else editor.chain().focus().unsetFontFamily().run()
-        }}
-      >
-        {FONTS.map((f) => (
-          <option key={f.label} value={f.value}>
-            {f.label}
-          </option>
-        ))}
-      </select>
-
-      <label title="Text color" className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md hover:bg-zinc-200/60">
-        <span
-          className="block h-4 w-4 rounded-sm border border-zinc-300"
-          style={{ backgroundColor: (editor.getAttributes('textStyle').color as string) ?? '#18181b' }}
-        />
-        <input
-          type="color"
-          className="h-0 w-0 opacity-0"
-          onChange={(e) => editor.chain().focus().setColor(e.target.value).run()}
-        />
-      </label>
-
-      <Divider />
-
-      <Btn title="Heading 1" active={editor.isActive('heading', { level: 1 })} onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}>
-        <Heading1 size={15} />
-      </Btn>
-      <Btn title="Heading 2" active={editor.isActive('heading', { level: 2 })} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}>
-        <Heading2 size={15} />
-      </Btn>
-      <Btn title="Heading 3" active={editor.isActive('heading', { level: 3 })} onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}>
-        <Heading3 size={15} />
-      </Btn>
-
-      <Divider />
-
-      <Btn title="Bold" active={editor.isActive('bold')} onClick={() => editor.chain().focus().toggleBold().run()}>
-        <Bold size={15} />
-      </Btn>
-      <Btn title="Italic" active={editor.isActive('italic')} onClick={() => editor.chain().focus().toggleItalic().run()}>
-        <Italic size={15} />
-      </Btn>
-      <Btn title="Underline" active={editor.isActive('underline')} onClick={() => editor.chain().focus().toggleUnderline().run()}>
-        <UnderlineIcon size={15} />
-      </Btn>
-      <Btn title="Strikethrough" active={editor.isActive('strike')} onClick={() => editor.chain().focus().toggleStrike().run()}>
-        <Strikethrough size={15} />
-      </Btn>
-      <Btn title="Inline code" active={editor.isActive('code')} onClick={() => editor.chain().focus().toggleCode().run()}>
-        <Code size={15} />
-      </Btn>
-      <Btn title="Highlight" active={editor.isActive('highlight')} onClick={() => editor.chain().focus().toggleHighlight({ color: '#fef08a' }).run()}>
-        <Highlighter size={15} />
-      </Btn>
-      <Btn title="Subscript" active={editor.isActive('subscript')} onClick={() => editor.chain().focus().toggleSubscript().run()}>
-        <SubIcon size={15} />
-      </Btn>
-      <Btn title="Superscript" active={editor.isActive('superscript')} onClick={() => editor.chain().focus().toggleSuperscript().run()}>
-        <SupIcon size={15} />
-      </Btn>
-
-      <Divider />
-
-      <Btn title="Align left" active={editor.isActive({ textAlign: 'left' })} onClick={() => editor.chain().focus().setTextAlign('left').run()}>
-        <AlignLeft size={15} />
-      </Btn>
-      <Btn title="Align center" active={editor.isActive({ textAlign: 'center' })} onClick={() => editor.chain().focus().setTextAlign('center').run()}>
-        <AlignCenter size={15} />
-      </Btn>
-      <Btn title="Align right" active={editor.isActive({ textAlign: 'right' })} onClick={() => editor.chain().focus().setTextAlign('right').run()}>
-        <AlignRight size={15} />
-      </Btn>
-      <Btn title="Justify" active={editor.isActive({ textAlign: 'justify' })} onClick={() => editor.chain().focus().setTextAlign('justify').run()}>
-        <AlignJustify size={15} />
-      </Btn>
-
-      <Divider />
-
-      <Btn title="Bullet list" active={editor.isActive('bulletList')} onClick={() => editor.chain().focus().toggleBulletList().run()}>
-        <List size={15} />
-      </Btn>
-      <Btn title="Numbered list" active={editor.isActive('orderedList')} onClick={() => editor.chain().focus().toggleOrderedList().run()}>
-        <ListOrdered size={15} />
-      </Btn>
-      <Btn title="Task list" active={editor.isActive('taskList')} onClick={() => editor.chain().focus().toggleTaskList().run()}>
-        <ListTodo size={15} />
-      </Btn>
-      <Btn title="Blockquote" active={editor.isActive('blockquote')} onClick={() => editor.chain().focus().toggleBlockquote().run()}>
-        <Quote size={15} />
-      </Btn>
-      <Btn title="Code block" active={editor.isActive('codeBlock')} onClick={() => editor.chain().focus().toggleCodeBlock().run()}>
-        <SquareCode size={15} />
-      </Btn>
-      <Btn title="Horizontal rule" onClick={() => editor.chain().focus().setHorizontalRule().run()}>
-        <Minus size={15} />
-      </Btn>
-
-      <Divider />
-
-      <Btn title="Add / edit link" active={editor.isActive('link')} onClick={setLink}>
-        <Link2 size={15} />
-      </Btn>
-      <Btn title="Remove link" disabled={!editor.isActive('link')} onClick={() => editor.chain().focus().unsetLink().run()}>
-        <Link2Off size={15} />
-      </Btn>
-      <Btn title="Insert image" onClick={() => imageInputRef.current?.click()}>
-        <ImageIcon size={15} />
-      </Btn>
-      <input
-        ref={imageInputRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={(e) => {
-          onImagePicked(e.target.files?.[0])
-          e.target.value = ''
-        }}
-      />
-      <Btn title="Embed YouTube video" onClick={addYoutube}>
-        <Video size={15} />
-      </Btn>
-      <Btn
-        title="Insert table"
-        active={inTable}
-        onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}
-      >
-        <TableIcon size={15} />
-      </Btn>
-
-      {inTable && (
-        <>
-          <Divider />
-          <TextBtn onClick={() => editor.chain().focus().addColumnAfter().run()}>+Col</TextBtn>
-          <TextBtn onClick={() => editor.chain().focus().addRowAfter().run()}>+Row</TextBtn>
-          <TextBtn onClick={() => editor.chain().focus().deleteColumn().run()}>−Col</TextBtn>
-          <TextBtn onClick={() => editor.chain().focus().deleteRow().run()}>−Row</TextBtn>
-          <TextBtn onClick={() => editor.chain().focus().toggleHeaderRow().run()}>Header</TextBtn>
-          <Btn title="Delete table" onClick={() => editor.chain().focus().deleteTable().run()}>
-            <Trash2 size={15} />
+    <>
+      <div className="flex flex-wrap items-center gap-1 border-b border-zinc-200 bg-white px-2 py-1.5">
+        {/* History */}
+        <ToolGroup>
+          <Btn title="Undo" onClick={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo()}>
+            <Undo2 size={15} />
           </Btn>
-        </>
-      )}
+          <Btn title="Redo" onClick={() => editor.chain().focus().redo().run()} disabled={!editor.can().redo()}>
+            <Redo2 size={15} />
+          </Btn>
+        </ToolGroup>
 
+        <Divider />
+
+        {/* Block type: font + headings */}
+        <ToolGroup>
+          <select
+            title="Font family"
+            className="h-7 rounded-md border border-zinc-200 bg-white px-1.5 text-xs text-zinc-600 hover:border-zinc-300 focus:outline-none"
+            value={(editor.getAttributes('textStyle').fontFamily as string) ?? ''}
+            onChange={(e) => {
+              if (e.target.value) editor.chain().focus().setFontFamily(e.target.value).run()
+              else editor.chain().focus().unsetFontFamily().run()
+            }}
+          >
+            {FONTS.map((f) => (
+              <option key={f.label} value={f.value}>
+                {f.label}
+              </option>
+            ))}
+          </select>
+          <Btn title="Heading 1" active={editor.isActive('heading', { level: 1 })} onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}>
+            <Heading1 size={15} />
+          </Btn>
+          <Btn title="Heading 2" active={editor.isActive('heading', { level: 2 })} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}>
+            <Heading2 size={15} />
+          </Btn>
+          <Btn title="Heading 3" active={editor.isActive('heading', { level: 3 })} onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}>
+            <Heading3 size={15} />
+          </Btn>
+        </ToolGroup>
+
+        <Divider />
+
+        {/* Inline marks */}
+        <ToolGroup>
+          <Btn title="Bold" active={editor.isActive('bold')} onClick={() => editor.chain().focus().toggleBold().run()}>
+            <Bold size={15} />
+          </Btn>
+          <Btn title="Italic" active={editor.isActive('italic')} onClick={() => editor.chain().focus().toggleItalic().run()}>
+            <Italic size={15} />
+          </Btn>
+          <Btn title="Underline" active={editor.isActive('underline')} onClick={() => editor.chain().focus().toggleUnderline().run()}>
+            <UnderlineIcon size={15} />
+          </Btn>
+          <Btn title="Strikethrough" active={editor.isActive('strike')} onClick={() => editor.chain().focus().toggleStrike().run()}>
+            <Strikethrough size={15} />
+          </Btn>
+          <Btn title="Inline code" active={editor.isActive('code')} onClick={() => editor.chain().focus().toggleCode().run()}>
+            <Code size={15} />
+          </Btn>
+          <Btn title="Highlight" active={editor.isActive('highlight')} onClick={() => editor.chain().focus().toggleHighlight({ color: '#fef08a' }).run()}>
+            <Highlighter size={15} />
+          </Btn>
+        </ToolGroup>
+
+        <Divider />
+
+        {/* Color */}
+        <ToolGroup>
+          <label title="Text color" className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-md hover:bg-zinc-100">
+            <span
+              className="block h-4 w-4 rounded-sm border border-zinc-300"
+              style={{ backgroundColor: (editor.getAttributes('textStyle').color as string) ?? '#18181b' }}
+            />
+            <input
+              type="color"
+              className="h-0 w-0 opacity-0"
+              onChange={(e) => editor.chain().focus().setColor(e.target.value).run()}
+            />
+          </label>
+        </ToolGroup>
+
+        <Divider />
+
+        {/* Align */}
+        <ToolGroup>
+          <Btn title="Align left" active={editor.isActive({ textAlign: 'left' })} onClick={() => editor.chain().focus().setTextAlign('left').run()}>
+            <AlignLeft size={15} />
+          </Btn>
+          <Btn title="Align center" active={editor.isActive({ textAlign: 'center' })} onClick={() => editor.chain().focus().setTextAlign('center').run()}>
+            <AlignCenter size={15} />
+          </Btn>
+          <Btn title="Align right" active={editor.isActive({ textAlign: 'right' })} onClick={() => editor.chain().focus().setTextAlign('right').run()}>
+            <AlignRight size={15} />
+          </Btn>
+          <Btn title="Justify" active={editor.isActive({ textAlign: 'justify' })} onClick={() => editor.chain().focus().setTextAlign('justify').run()}>
+            <AlignJustify size={15} />
+          </Btn>
+        </ToolGroup>
+
+        <Divider />
+
+        {/* Lists / quote / code block / rule */}
+        <ToolGroup>
+          <Btn title="Bullet list" active={editor.isActive('bulletList')} onClick={() => editor.chain().focus().toggleBulletList().run()}>
+            <List size={15} />
+          </Btn>
+          <Btn title="Numbered list" active={editor.isActive('orderedList')} onClick={() => editor.chain().focus().toggleOrderedList().run()}>
+            <ListOrdered size={15} />
+          </Btn>
+          <Btn title="Task list" active={editor.isActive('taskList')} onClick={() => editor.chain().focus().toggleTaskList().run()}>
+            <ListTodo size={15} />
+          </Btn>
+          <Btn title="Blockquote" active={editor.isActive('blockquote')} onClick={() => editor.chain().focus().toggleBlockquote().run()}>
+            <Quote size={15} />
+          </Btn>
+          <Btn title="Code block" active={editor.isActive('codeBlock')} onClick={() => editor.chain().focus().toggleCodeBlock().run()}>
+            <SquareCode size={15} />
+          </Btn>
+          <Btn title="Horizontal rule" onClick={() => editor.chain().focus().setHorizontalRule().run()}>
+            <Minus size={15} />
+          </Btn>
+        </ToolGroup>
+
+        <Divider />
+
+        {/* Insert */}
+        <ToolGroup>
+          <Btn title="Add / edit link" active={editor.isActive('link')} onClick={setLink}>
+            <Link2 size={15} />
+          </Btn>
+          <Btn title="Remove link" disabled={!editor.isActive('link')} onClick={() => editor.chain().focus().unsetLink().run()}>
+            <Link2Off size={15} />
+          </Btn>
+          <Btn title="Insert image" onClick={() => imageInputRef.current?.click()}>
+            <ImageIcon size={15} />
+          </Btn>
+          <input
+            ref={imageInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              onImagePicked(e.target.files?.[0])
+              e.target.value = ''
+            }}
+          />
+          <Btn title="Embed YouTube video" onClick={addYoutube}>
+            <Video size={15} />
+          </Btn>
+          <Btn
+            title="Insert table"
+            active={inTable}
+            onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}
+          >
+            <TableIcon size={15} />
+          </Btn>
+        </ToolGroup>
+
+        <Divider />
+
+        {/* More: rarely used actions */}
+        <ToolGroup>
+          <MorePopover editor={editor} />
+        </ToolGroup>
+      </div>
+
+      {inTable && <TableToolbar editor={editor} />}
+    </>
+  )
+}
+
+function TableToolbar({ editor }: { editor: Editor }) {
+  return (
+    <div className="flex flex-wrap items-center gap-1 border-b border-zinc-200 bg-zinc-50 px-2 py-1.5">
+      <span className="mr-1 text-xs font-medium text-zinc-400">Table</span>
+      <TextBtn onClick={() => editor.chain().focus().addColumnAfter().run()}>+Col</TextBtn>
+      <TextBtn onClick={() => editor.chain().focus().addRowAfter().run()}>+Row</TextBtn>
+      <TextBtn onClick={() => editor.chain().focus().deleteColumn().run()}>−Col</TextBtn>
+      <TextBtn onClick={() => editor.chain().focus().deleteRow().run()}>−Row</TextBtn>
+      <TextBtn onClick={() => editor.chain().focus().toggleHeaderRow().run()}>Header</TextBtn>
       <Divider />
-
-      <Btn
-        title="Clear formatting"
-        onClick={() => editor.chain().focus().clearNodes().unsetAllMarks().run()}
-      >
-        <Eraser size={15} />
+      <Btn title="Delete table" onClick={() => editor.chain().focus().deleteTable().run()}>
+        <Trash2 size={15} />
       </Btn>
     </div>
   )
+}
+
+function MorePopover({ editor }: { editor: Editor }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="relative">
+      <Btn title="More" active={open} onClick={() => setOpen((o) => !o)}>
+        <MoreHorizontal size={15} />
+      </Btn>
+      {open && (
+        <>
+          <button
+            type="button"
+            aria-hidden
+            className="fixed inset-0 z-10 cursor-default"
+            onClick={() => setOpen(false)}
+          />
+          <div className="absolute right-0 z-20 mt-1 w-44 rounded-lg border border-zinc-200 bg-white p-1 shadow-lg">
+            <MoreItem
+              active={editor.isActive('subscript')}
+              onClick={() => editor.chain().focus().toggleSubscript().run()}
+            >
+              <SubIcon size={15} /> Subscript
+            </MoreItem>
+            <MoreItem
+              active={editor.isActive('superscript')}
+              onClick={() => editor.chain().focus().toggleSuperscript().run()}
+            >
+              <SupIcon size={15} /> Superscript
+            </MoreItem>
+            <MoreItem
+              onClick={() => {
+                editor.chain().focus().clearNodes().unsetAllMarks().run()
+                setOpen(false)
+              }}
+            >
+              <Eraser size={15} /> Clear formatting
+            </MoreItem>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+function MoreItem({
+  active,
+  onClick,
+  children,
+}: {
+  active?: boolean
+  onClick: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      onMouseDown={(e) => e.preventDefault()}
+      onClick={onClick}
+      className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs font-medium transition-colors ${
+        active ? 'bg-zinc-900 text-white' : 'text-zinc-600 hover:bg-zinc-100'
+      }`}
+    >
+      {children}
+    </button>
+  )
+}
+
+function ToolGroup({ children }: { children: React.ReactNode }) {
+  return <div className="flex items-center gap-0.5">{children}</div>
 }
 
 function Btn({
@@ -349,7 +453,7 @@ function Btn({
       onMouseDown={(e) => e.preventDefault()}
       onClick={onClick}
       className={`flex h-7 w-7 items-center justify-center rounded-md transition-colors disabled:opacity-30 ${
-        active ? 'bg-zinc-900 text-white' : 'text-zinc-600 hover:bg-zinc-200/60'
+        active ? 'bg-zinc-900 text-white' : 'text-zinc-600 hover:bg-zinc-100'
       }`}
     >
       {children}
@@ -358,7 +462,7 @@ function Btn({
 }
 
 function Divider() {
-  return <span className="mx-1 h-5 w-px bg-zinc-200" />
+  return <span className="mx-0.5 h-5 w-px bg-zinc-200/70" />
 }
 
 function TextBtn({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
@@ -367,7 +471,7 @@ function TextBtn({ onClick, children }: { onClick: () => void; children: React.R
       type="button"
       onMouseDown={(e) => e.preventDefault()}
       onClick={onClick}
-      className="h-7 rounded-md px-1.5 text-xs font-medium text-zinc-600 hover:bg-zinc-200/60"
+      className="h-7 rounded-md px-1.5 text-xs font-medium text-zinc-600 hover:bg-zinc-100"
     >
       {children}
     </button>
