@@ -122,11 +122,22 @@ def mount_spa(app: FastAPI):
     if not os.path.isfile(index):
         return
 
+    dist_root = os.path.realpath(dist)
+
     @app.get("/{full_path:path}", include_in_schema=False)
     def spa(full_path: str):
-        candidate = os.path.join(dist, full_path)
-        if full_path and os.path.isfile(candidate):
-            return FileResponse(candidate)
+        if full_path:
+            # Resolve the real path and confirm it stays inside dist_root, so a
+            # URL-encoded ".." (e.g. /..%2f.env) can't escape the dist dir and
+            # leak secrets. os.path.commonpath raises ValueError for paths on
+            # different drives/roots — treat that as an escape too.
+            candidate = os.path.realpath(os.path.join(dist_root, full_path))
+            try:
+                inside = os.path.commonpath([dist_root, candidate]) == dist_root
+            except ValueError:
+                inside = False
+            if inside and os.path.isfile(candidate):
+                return FileResponse(candidate)
         return FileResponse(index)
 
 

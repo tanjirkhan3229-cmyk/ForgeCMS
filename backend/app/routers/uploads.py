@@ -2,7 +2,9 @@ import os
 import re
 import uuid
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+
+from .auth import require_role
 
 router = APIRouter(prefix="/api/uploads", tags=["uploads"])
 
@@ -12,7 +14,7 @@ MAX_SIZE = 50 * 1024 * 1024  # 50 MB
 BLOCKED_EXTENSIONS = {".exe", ".sh", ".bat", ".cmd", ".com", ".scr", ".ps1"}
 
 
-@router.post("")
+@router.post("", dependencies=[Depends(require_role("admin", "editor"))])
 async def upload_file(file: UploadFile = File(...)):
     original = file.filename or "file"
     ext = os.path.splitext(original)[1].lower()

@@ -8,8 +8,12 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models import ROLES, TONE_GUIDE_KEY, USER_STATUSES, Profile, Setting, User
 from ..settings_store import set_setting
+from .auth import require_role
 
 router = APIRouter(prefix="/api/admin/settings", tags=["settings"])
+
+# Profile writes and all user management are admin-only.
+admin_only = [Depends(require_role("admin"))]
 
 
 class ProfileIn(BaseModel):
@@ -41,7 +45,7 @@ def read_profile(db: Session = Depends(get_db)):
     return get_or_create_profile(db)
 
 
-@router.put("/profile", response_model=ProfileOut)
+@router.put("/profile", response_model=ProfileOut, dependencies=admin_only)
 def update_profile(payload: ProfileIn, db: Session = Depends(get_db)):
     profile = get_or_create_profile(db)
     for key, value in payload.model_dump().items():
@@ -138,7 +142,7 @@ def list_users(db: Session = Depends(get_db)):
     return db.query(User).order_by(User.created_at.asc()).all()
 
 
-@router.post("/users", response_model=UserOut, status_code=201)
+@router.post("/users", response_model=UserOut, status_code=201, dependencies=admin_only)
 def create_user(payload: UserIn, db: Session = Depends(get_db)):
     if not payload.name.strip():
         raise HTTPException(status_code=422, detail="Name is required")
@@ -150,7 +154,7 @@ def create_user(payload: UserIn, db: Session = Depends(get_db)):
     return user
 
 
-@router.put("/users/{user_id}", response_model=UserOut)
+@router.put("/users/{user_id}", response_model=UserOut, dependencies=admin_only)
 def update_user(user_id: int, payload: UserUpdate, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
@@ -170,7 +174,7 @@ def update_user(user_id: int, payload: UserUpdate, db: Session = Depends(get_db)
     return user
 
 
-@router.delete("/users/{user_id}", status_code=204)
+@router.delete("/users/{user_id}", status_code=204, dependencies=admin_only)
 def delete_user(user_id: int, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()
     if not user:

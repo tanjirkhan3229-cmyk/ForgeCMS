@@ -77,12 +77,22 @@ def download_resource(item_id: int, db: Session = Depends(get_db)):
     item = published(db, "resources").filter(ContentItem.id == item_id).first()
     if not item or not item.file_url:
         raise HTTPException(status_code=404, detail="Resource not found")
+
+    # This endpoint is public, so never trust file_url to stay inside uploads.
+    # Take only the basename and confirm the resolved path lives under the
+    # uploads root; a traversal value (e.g. "/../../etc/passwd") thus 404s.
+    uploads_root = os.path.realpath("uploads")
+    name = os.path.basename(item.file_url)
+    file_path = os.path.realpath(os.path.join(uploads_root, name))
+    try:
+        inside = os.path.commonpath([uploads_root, file_path]) == uploads_root
+    except ValueError:
+        inside = False
+    if not name or not inside or not os.path.isfile(file_path):
+        raise HTTPException(status_code=404, detail="File missing on server")
+
     item.download_count += 1
     db.commit()
-    # file_url is like /uploads/<stored-name>
-    file_path = os.path.join(os.getcwd(), item.file_url.lstrip("/"))
-    if not os.path.isfile(file_path):
-        raise HTTPException(status_code=404, detail="File missing on server")
     return FileResponse(
         file_path,
         filename=item.file_name or os.path.basename(file_path),

@@ -79,8 +79,23 @@ AI's grounding documents), the **Media Library** (browse, upload, copy URL,
 delete all uploaded files) and **Settings**, which has two
 tabs: **Profile Settings** (name, email, title, bio, avatar) and **User
 Management** (add/remove team members, change roles — Admin, Editor, Author,
-Viewer — and toggle status between active, invited and suspended). Roles are
-stored but not yet enforced; that requires adding authentication.
+Viewer — and toggle status between active, invited and suspended).
+
+## Roles & permissions
+
+Every `/api/admin/*` and `/api/uploads` endpoint requires a valid session
+token. Beyond authentication, writes are gated by role (enforced server-side
+via `require_role` in `backend/app/routers/auth.py`):
+
+| Role | Permissions |
+| --- | --- |
+| **Admin** | Everything, including user management and profile/settings writes |
+| **Editor** | Create, edit, publish, schedule, duplicate and delete content; upload and delete media; manage the knowledge base |
+| **Author** | Create and edit content only — cannot publish, schedule, duplicate or delete (content has no per-author ownership field, so authors may edit any item) |
+| **Viewer** | Read-only — every GET/list endpoint, no writes |
+
+Listing endpoints (`GET`) stay open to all authenticated roles; only writes and
+deletes are restricted. A request from a role without permission returns `403`.
 
 ## Editor
 
