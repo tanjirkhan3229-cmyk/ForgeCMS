@@ -1,5 +1,5 @@
 import re
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
@@ -29,6 +29,18 @@ EDIT_ROLES = ("admin", "editor", "author")
 MANAGE_ROLES = ("admin", "editor")
 
 MODULE_PATH = Path(..., pattern=MODULE_PATTERN)
+
+
+def is_past(dt: datetime) -> bool:
+    """True if dt is before the current instant, compared in UTC.
+
+    Naive datetimes are treated as UTC, matching the scheduler's naive-UTC
+    `publish_at <= utcnow()` comparison; tz-aware values are converted to UTC.
+    """
+    now = datetime.now(timezone.utc)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt < now
 
 
 def slugify(text: str) -> str:
@@ -164,8 +176,11 @@ def create_item(
     item.content_html = sanitize_html(item.content_html)
     if item.status == "published":
         item.published_at = datetime.utcnow()
-    if item.status == "scheduled" and not item.publish_at:
-        raise HTTPException(status_code=422, detail="publish_at required for scheduled items")
+    if item.status == "scheduled":
+        if not item.publish_at:
+            raise HTTPException(status_code=422, detail="publish_at required for scheduled items")
+        if is_past(item.publish_at):
+            raise HTTPException(status_code=422, detail="publish_at must be in the future")
     db.add(item)
     db.commit()
     db.refresh(item)
@@ -203,6 +218,13 @@ def update_item(
         raise HTTPException(status_code=422, detail="Invalid status")
     for key, value in data.items():
         setattr(item, key, value)
+    if item.status == "scheduled":
+        if not item.publish_at:
+            raise HTTPException(status_code=422, detail="publish_at required for scheduled items")
+        # Only re-validate against "now" when this request actually sets the
+        # time, so unrelated edits to an already-scheduled item don't 422.
+        if "publish_at" in data and is_past(item.publish_at):
+            raise HTTPException(status_code=422, detail="publish_at must be in the future")
     if new_status == "published" and not item.published_at:
         item.published_at = datetime.utcnow()
     db.commit()
@@ -274,6 +296,8 @@ def schedule_item(
     db: Session = Depends(get_db),
 ):
     item = get_item(db, module, item_id)
+    if is_past(payload.publish_at):
+        raise HTTPException(status_code=422, detail="publish_at must be in the future")
     item.status = "scheduled"
     item.publish_at = payload.publish_at
     db.commit()
