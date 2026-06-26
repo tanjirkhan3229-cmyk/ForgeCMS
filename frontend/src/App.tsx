@@ -1,4 +1,5 @@
 import { Navigate, Route, Routes, useParams } from 'react-router-dom'
+import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import AdminLayout from './components/AdminLayout'
 import PublicLayout from './components/PublicLayout'
@@ -13,16 +14,32 @@ import ContentListPage from './pages/public/ContentListPage'
 import ContentDetailPage from './pages/public/ContentDetailPage'
 import FaqPage from './pages/public/FaqPage'
 import ResourcesPage from './pages/public/ResourcesPage'
-import { getToken } from './lib/api'
+import { authApi } from './lib/api'
 
 function ModuleIndexRedirect() {
   const { module } = useParams()
   return <Navigate to={`/admin/${module}/drafts`} replace />
 }
 
-/** Gate for the admin studio: no token → login page. */
+/**
+ * Gate for the admin studio. The session is an httpOnly cookie that JS can't
+ * read, so we verify it by asking the backend who we are: /api/auth/me succeeds
+ * → authed, 401 → off to login.
+ */
 function RequireAuth({ children }: { children: ReactNode }) {
-  if (!getToken()) return <Navigate to="/login" replace />
+  const [status, setStatus] = useState<'checking' | 'authed' | 'denied'>('checking')
+  useEffect(() => {
+    let active = true
+    authApi
+      .me()
+      .then(() => active && setStatus('authed'))
+      .catch(() => active && setStatus('denied'))
+    return () => {
+      active = false
+    }
+  }, [])
+  if (status === 'checking') return null
+  if (status === 'denied') return <Navigate to="/login" replace />
   return children
 }
 

@@ -19,7 +19,7 @@ import {
   Settings,
 } from 'lucide-react'
 import type { AuthUser, Module, OverviewStats } from '../lib/api'
-import { adminApi, authApi, clearToken, MODULE_LABELS } from '../lib/api'
+import { adminApi, authApi, MODULE_LABELS } from '../lib/api'
 
 const MODULES: { module: Module; icon: typeof FileText }[] = [
   { module: 'blogs', icon: FileText },
@@ -49,8 +49,13 @@ export default function AdminLayout() {
     authApi.me().then(setUser).catch(() => {})
   }, [])
 
-  function logout() {
-    clearToken()
+  async function logout() {
+    // Clear the httpOnly cookie server-side, then leave the studio regardless.
+    try {
+      await authApi.logout()
+    } catch {
+      /* ignore — navigate away either way */
+    }
     navigate('/login', { replace: true })
   }
 

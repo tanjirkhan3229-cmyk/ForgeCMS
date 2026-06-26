@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { Navigate, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { Hexagon, Loader2, Lock, Mail } from 'lucide-react'
-import { authApi, getToken, setToken } from '../lib/api'
+import { authApi } from '../lib/api'
 
 export default function LoginPage() {
   const navigate = useNavigate()
@@ -11,16 +11,13 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
-  // Already signed in — straight to the dashboard.
-  if (getToken()) return <Navigate to="/admin" replace />
-
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
     setError('')
     setBusy(true)
     try {
-      const { token } = await authApi.login(email.trim(), password)
-      setToken(token)
+      // On success the backend sets the httpOnly session cookie; nothing to store here.
+      await authApi.login(email.trim(), password)
       navigate('/admin', { replace: true })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed')
