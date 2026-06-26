@@ -76,3 +76,10 @@ class StatsOut(BaseModel):
     scheduled: int
     published: int
     total: int
+
+
+class DashboardOut(BaseModel):
+    # Whole-table aggregates computed in SQL, so they don't undercount the way a
+    # client-side page slice does.
+    published_this_week: int
+    resource_downloads: int
