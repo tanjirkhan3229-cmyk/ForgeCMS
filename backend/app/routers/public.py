@@ -7,12 +7,26 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import MODULE_PATTERN, ContentItem
+from ..models import MODULES, ContentItem
 from ..schemas import ContentList, ContentOut
 
 router = APIRouter(prefix="/api", tags=["public"])
 
-MODULE_PATH = Path(..., pattern=MODULE_PATTERN)
+
+def valid_module(module: str = Path(...)) -> str:
+    """Resolve the {module} path segment, 404ing on an unknown module.
+
+    An unknown module is a missing resource, not a malformed request, so this
+    returns 404 (JSON) rather than the 422 a bare pattern constraint produced.
+    A 404 here also keeps unmatched /api/* paths from ever reaching the SPA
+    fallback and being answered with index.html.
+    """
+    if module not in MODULES:
+        raise HTTPException(status_code=404, detail="Not found")
+    return module
+
+
+MODULE_PATH = Depends(valid_module)
 
 
 def published(db: Session, module: str):

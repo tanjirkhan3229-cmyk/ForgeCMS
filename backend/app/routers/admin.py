@@ -7,7 +7,7 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import MODULE_PATTERN, MODULES, STATUSES, ContentItem
+from ..models import MODULES, STATUSES, ContentItem
 from ..sanitize import sanitize_html
 from ..schemas import (
     ContentCreate,
@@ -28,7 +28,19 @@ router = APIRouter(prefix="/api/admin", tags=["admin"])
 EDIT_ROLES = ("admin", "editor", "author")
 MANAGE_ROLES = ("admin", "editor")
 
-MODULE_PATH = Path(..., pattern=MODULE_PATTERN)
+
+def valid_module(module: str = Path(...)) -> str:
+    """Resolve the {module} path segment, 404ing on an unknown module.
+
+    An unknown module is a missing resource, not a malformed request, so this
+    returns 404 (JSON) rather than the 422 a bare pattern constraint produced.
+    """
+    if module not in MODULES:
+        raise HTTPException(status_code=404, detail="Not found")
+    return module
+
+
+MODULE_PATH = Depends(valid_module)
 
 
 def is_past(dt: datetime) -> bool:

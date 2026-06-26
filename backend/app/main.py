@@ -115,6 +115,7 @@ def mount_spa(app: FastAPI):
     Registered after all API routes, so /api/* and /uploads/* keep priority.
     Unknown paths fall back to index.html for client-side routing.
     """
+    from fastapi import HTTPException
     from fastapi.responses import FileResponse
 
     dist = os.environ.get("FRONTEND_DIST", "static")
@@ -126,6 +127,11 @@ def mount_spa(app: FastAPI):
 
     @app.get("/{full_path:path}", include_in_schema=False)
     def spa(full_path: str):
+        # Reaching the catch-all for a backend namespace means no real API route
+        # or upload matched — return a JSON 404 rather than index.html, so the
+        # frontend's res.json() gets a clean error instead of a parse failure.
+        if full_path == "api" or full_path.startswith(("api/", "uploads/")):
+            raise HTTPException(status_code=404, detail="Not found")
         if full_path:
             # Resolve the real path and confirm it stays inside dist_root, so a
             # URL-encoded ".." (e.g. /..%2f.env) can't escape the dist dir and
