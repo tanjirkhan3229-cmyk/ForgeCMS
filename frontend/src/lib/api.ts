@@ -237,20 +237,6 @@ export const adminApi = {
     request<ContentItem>(`/api/admin/${module}/${id}/duplicate`, { method: 'POST' }),
 }
 
-export const publicApi = {
-  list: (module: Module, params: { search?: string; category?: string; page?: number; page_size?: number } = {}) => {
-    const qs = new URLSearchParams()
-    if (params.search) qs.set('search', params.search)
-    if (params.category) qs.set('category', params.category)
-    qs.set('page', String(params.page ?? 1))
-    qs.set('page_size', String(params.page_size ?? 12))
-    return request<ContentList>(`/api/${module}?${qs}`)
-  },
-  categories: (module: Module) => request<string[]>(`/api/${module}/categories`),
-  bySlug: (module: Module, slug: string) =>
-    request<ContentItem>(`/api/${module}/slug/${encodeURIComponent(slug)}`),
-}
-
 export const mediaApi = {
   list: (params: { search?: string; type?: 'image' | 'file'; page?: number; page_size?: number } = {}) => {
     const qs = new URLSearchParams()

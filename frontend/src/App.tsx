@@ -2,7 +2,6 @@ import { Navigate, Route, Routes, useParams } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import AdminLayout from './components/AdminLayout'
-import PublicLayout from './components/PublicLayout'
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/admin/DashboardPage'
 import StatusTilePage from './pages/admin/StatusTilePage'
@@ -10,10 +9,6 @@ import EditorPage from './pages/admin/EditorPage'
 import KnowledgeBasePage from './pages/admin/KnowledgeBasePage'
 import MediaLibraryPage from './pages/admin/MediaLibraryPage'
 import SettingsPage from './pages/admin/SettingsPage'
-import ContentListPage from './pages/public/ContentListPage'
-import ContentDetailPage from './pages/public/ContentDetailPage'
-import FaqPage from './pages/public/FaqPage'
-import ResourcesPage from './pages/public/ResourcesPage'
 import { authApi } from './lib/api'
 
 function ModuleIndexRedirect() {
@@ -46,18 +41,10 @@ function RequireAuth({ children }: { children: ReactNode }) {
 export default function App() {
   return (
     <Routes>
-      {/* The studio is the front door — public content lives under explicit paths. */}
+      {/* Headless CMS: this app is the admin studio only. Public content is
+          served via the API and rendered by the separate forgesop.com frontend. */}
       <Route path="/" element={<Navigate to="/admin" replace />} />
       <Route path="/login" element={<LoginPage />} />
-
-      <Route element={<PublicLayout />}>
-        <Route path="/blogs" element={<ContentListPage module="blogs" />} />
-        <Route path="/blogs/:slug" element={<ContentDetailPage module="blogs" />} />
-        <Route path="/news" element={<ContentListPage module="news" />} />
-        <Route path="/news/:slug" element={<ContentDetailPage module="news" />} />
-        <Route path="/faqs" element={<FaqPage />} />
-        <Route path="/resources" element={<ResourcesPage />} />
-      </Route>
 
       <Route
         path="/admin"
