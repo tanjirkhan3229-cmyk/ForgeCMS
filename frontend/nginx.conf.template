@@ -25,7 +25,7 @@ server {
         client_max_body_size 60m;
     }
 
-    # SPA fallback for client-side routes (/admin/..., /blogs/...)
+    # SPA fallback for client-side routes (/admin/..., /login)
     location / {
         try_files $uri $uri/ /index.html;
     }

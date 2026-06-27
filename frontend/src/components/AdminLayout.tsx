@@ -176,7 +176,7 @@ export default function AdminLayout() {
 
         <div className="border-t border-zinc-100 p-3">
           <a
-            href="/blogs"
+            href="https://forgesop.com"
             target="_blank"
             rel="noreferrer"
             className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium text-zinc-500 transition-colors hover:bg-zinc-50 hover:text-zinc-900"
