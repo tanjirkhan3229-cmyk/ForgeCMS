@@ -19,7 +19,7 @@ import time
 from typing import Optional
 
 import httpx
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Cookie, Depends, Header, HTTPException, Response
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -33,6 +33,35 @@ TOKEN_TTL_SECONDS = 7 * 24 * 3600
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "").rstrip("/")
 SUPABASE_ANON_KEY = os.environ.get("SUPABASE_ANON_KEY", "")
+
+# The session lives in an httpOnly cookie so it is never readable by JavaScript
+# (defeating token theft via XSS). Secure defaults on; set COOKIE_SECURE=false
+# for plain-http local development if a browser refuses the cookie.
+COOKIE_NAME = "forge_session"
+COOKIE_SECURE = os.environ.get("COOKIE_SECURE", "true").strip().lower() != "false"
+
+
+def set_session_cookie(response: Response, token: str) -> None:
+    response.set_cookie(
+        key=COOKIE_NAME,
+        value=token,
+        max_age=TOKEN_TTL_SECONDS,
+        httponly=True,
+        secure=COOKIE_SECURE,
+        samesite="strict",
+        path="/",
+    )
+
+
+def clear_session_cookie(response: Response) -> None:
+    # Attributes must match set_session_cookie for the browser to drop it.
+    response.delete_cookie(
+        key=COOKIE_NAME,
+        httponly=True,
+        secure=COOKIE_SECURE,
+        samesite="strict",
+        path="/",
+    )
 
 
 def _load_secret() -> bytes:
@@ -82,9 +111,12 @@ def parse_token(token: str) -> Optional[str]:
 
 def require_auth(
     authorization: str = Header(default=""),
+    session: str = Cookie(default="", alias=COOKIE_NAME),
     db: Session = Depends(get_db),
 ) -> User:
-    token = authorization.removeprefix("Bearer ").strip()
+    # Prefer the httpOnly session cookie; fall back to a Bearer header so
+    # non-browser API clients (scripts, integrations) still work.
+    token = session or authorization.removeprefix("Bearer ").strip()
     email = parse_token(token) if token else None
     if not email:
         raise HTTPException(status_code=401, detail="Not authenticated")
@@ -135,13 +167,8 @@ class UserOut(BaseModel):
     avatar_url: str
 
 
-class LoginOut(BaseModel):
-    token: str
-    user: UserOut
-
-
-@router.post("/login", response_model=LoginOut)
-async def login(payload: LoginIn, db: Session = Depends(get_db)):
+@router.post("/login", response_model=UserOut)
+async def login(payload: LoginIn, resp: Response, db: Session = Depends(get_db)):
     if not SUPABASE_URL or not SUPABASE_ANON_KEY:
         raise HTTPException(
             status_code=503,
@@ -177,10 +204,24 @@ async def login(payload: LoginIn, db: Session = Depends(get_db)):
         db.add(user)
         db.commit()
         db.refresh(user)
-    elif user.status != "active":
+    elif user.status == "suspended":
         raise HTTPException(status_code=401, detail="Account is suspended")
+    elif user.status != "active":
+        # A pre-created user (e.g. status "invited") accepts the invite by
+        # logging in successfully with valid Supabase credentials.
+        user.status = "active"
+        db.commit()
+        db.refresh(user)
 
-    return LoginOut(token=make_token(user.email), user=UserOut.model_validate(user))
+    # Issue the session as an httpOnly cookie rather than returning it in the
+    # body, so it is never exposed to JavaScript.
+    set_session_cookie(resp, make_token(user.email))
+    return UserOut.model_validate(user)
+
+
+@router.post("/logout", status_code=204)
+def logout(resp: Response):
+    clear_session_cookie(resp)
 
 
 @router.get("/me", response_model=UserOut)

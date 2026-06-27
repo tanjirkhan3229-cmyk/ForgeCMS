@@ -44,6 +44,11 @@ export interface ModuleStats {
 
 export type OverviewStats = Record<Module, ModuleStats>
 
+export interface DashboardStats {
+  published_this_week: number
+  resource_downloads: number
+}
+
 export interface MediaFile {
   name: string
   url: string
@@ -111,32 +116,21 @@ export const MODULE_SINGULAR: Record<Module, string> = {
   faqs: 'FAQ Article',
 }
 
-// ---------- auth token ----------
-
-const TOKEN_KEY = 'forgecms_token'
-
-export function getToken(): string | null {
-  return localStorage.getItem(TOKEN_KEY)
-}
-
-export function setToken(token: string) {
-  localStorage.setItem(TOKEN_KEY, token)
-}
-
-export function clearToken() {
-  localStorage.removeItem(TOKEN_KEY)
-}
+// ---------- session ----------
+//
+// The session lives in an httpOnly cookie set by the backend on login, so it is
+// never readable by JavaScript (and so can't be stolen via XSS). We just send
+// credentials with every request; there is no token to store client-side.
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
-  const token = getToken()
   const headers: Record<string, string> = {
     ...(options?.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
   }
-  const res = await fetch(url, { ...options, headers })
-  if (res.status === 401 && !url.startsWith('/api/auth/login')) {
-    // Session expired or revoked — drop the token and send the user to login.
-    clearToken()
+  const res = await fetch(url, { ...options, headers, credentials: 'include' })
+  // Auth endpoints (/api/auth/*) report 401s to their callers, which handle the
+  // routing themselves (e.g. the RequireAuth gate). For everything else a 401
+  // means the session expired mid-use, so bounce to login.
+  if (res.status === 401 && !url.startsWith('/api/auth/')) {
     if (!window.location.pathname.startsWith('/login')) {
       window.location.href = '/login'
     }
@@ -201,11 +195,13 @@ export interface AuthUser {
 }
 
 export const authApi = {
+  // The backend sets the session as an httpOnly cookie and returns the user.
   login: (email: string, password: string) =>
-    request<{ token: string; user: AuthUser }>('/api/auth/login', {
+    request<AuthUser>('/api/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     }),
+  logout: () => request<void>('/api/auth/logout', { method: 'POST' }),
   me: () => request<AuthUser>('/api/auth/me'),
 }
 
@@ -220,6 +216,7 @@ export const adminApi = {
   },
   stats: (module: Module) => request<ModuleStats>(`/api/admin/${module}/stats`),
   overviewStats: () => request<OverviewStats>('/api/admin/stats'),
+  dashboard: () => request<DashboardStats>('/api/admin/dashboard'),
   get: (module: Module, id: number) => request<ContentItem>(`/api/admin/${module}/${id}`),
   create: (module: Module, data: Partial<ContentItem>) =>
     request<ContentItem>(`/api/admin/${module}`, { method: 'POST', body: JSON.stringify(data) }),

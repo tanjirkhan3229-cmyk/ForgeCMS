@@ -3,6 +3,7 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from ..database import get_db
@@ -130,11 +131,37 @@ def validate_user_fields(
     if email is not None:
         if "@" not in email or "." not in email.split("@")[-1]:
             raise HTTPException(status_code=422, detail="Invalid email address")
-        q = db.query(User).filter(User.email == email)
+        # Match case-insensitively — auth resolves logins via func.lower, so
+        # "Bob@x.com" and "bob@x.com" are the same account and must not coexist.
+        q = db.query(User).filter(func.lower(User.email) == email.lower())
         if exclude_id is not None:
             q = q.filter(User.id != exclude_id)
         if q.first():
             raise HTTPException(status_code=409, detail="A user with this email already exists")
+
+
+def would_orphan_admins(
+    db: Session,
+    user: User,
+    new_role: Optional[str] = None,
+    new_status: Optional[str] = None,
+) -> bool:
+    """True if removing `user` or applying the given role/status change would
+    leave the system with zero active admins.
+
+    `new_role`/`new_status` default to None (deletion). For an update, pass the
+    resulting values so a no-op or admin-preserving change is allowed.
+    """
+    if not (user.role == "admin" and user.status == "active"):
+        return False
+    if new_role == "admin" and new_status == "active":
+        return False
+    others = (
+        db.query(User)
+        .filter(User.role == "admin", User.status == "active", User.id != user.id)
+        .count()
+    )
+    return others == 0
 
 
 @router.get("/users", response_model=List[UserOut])
@@ -147,7 +174,9 @@ def create_user(payload: UserIn, db: Session = Depends(get_db)):
     if not payload.name.strip():
         raise HTTPException(status_code=422, detail="Name is required")
     validate_user_fields(db, email=payload.email, role=payload.role, status=payload.status)
-    user = User(**payload.model_dump())
+    data = payload.model_dump()
+    data["email"] = data["email"].lower()
+    user = User(**data)
     db.add(user)
     db.commit()
     db.refresh(user)
@@ -160,6 +189,8 @@ def update_user(user_id: int, payload: UserUpdate, db: Session = Depends(get_db)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     data = payload.model_dump(exclude_unset=True)
+    if data.get("email") is not None:
+        data["email"] = data["email"].lower()
     validate_user_fields(
         db,
         email=data.get("email"),
@@ -167,6 +198,16 @@ def update_user(user_id: int, payload: UserUpdate, db: Session = Depends(get_db)
         status=data.get("status"),
         exclude_id=user_id,
     )
+    if would_orphan_admins(
+        db,
+        user,
+        new_role=data.get("role", user.role),
+        new_status=data.get("status", user.status),
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail="Cannot suspend or demote the last active admin",
+        )
     for key, value in data.items():
         setattr(user, key, value)
     db.commit()
@@ -179,5 +220,10 @@ def delete_user(user_id: int, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+    if would_orphan_admins(db, user):
+        raise HTTPException(
+            status_code=409,
+            detail="Cannot delete the last active admin",
+        )
     db.delete(user)
     db.commit()
