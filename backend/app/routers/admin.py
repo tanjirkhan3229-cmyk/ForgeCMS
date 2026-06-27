@@ -137,11 +137,32 @@ def module_stats(module: str = MODULE_PATH, db: Session = Depends(get_db)):
     )
 
 
+# Columns the admin list may be ordered by. Allowlist, not free-form, so an
+# attacker can't sort by an arbitrary attribute. A leading "-" means descending.
+SORTABLE = {"published_at", "publish_at", "created_at", "updated_at", "title"}
+
+
+def _order_clause(sort: Optional[str]):
+    """Resolve the ?sort= param to an ORDER BY clause, defaulting to newest-edited.
+
+    Unknown or empty values fall back to the default rather than erroring, so a
+    stale client never breaks the list. ``title`` sorts case-insensitively;
+    everything else is a timestamp.
+    """
+    desc = bool(sort) and sort.startswith("-")
+    field = sort[1:] if desc else (sort or "")
+    if field not in SORTABLE:
+        return ContentItem.updated_at.desc()
+    col = func.lower(ContentItem.title) if field == "title" else getattr(ContentItem, field)
+    return col.desc() if desc else col.asc()
+
+
 @router.get("/{module}", response_model=ContentList)
 def list_items(
     module: str = MODULE_PATH,
     status: Optional[str] = Query(None, pattern="^(draft|scheduled|published)$"),
     search: Optional[str] = None,
+    sort: Optional[str] = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
@@ -154,7 +175,8 @@ def list_items(
         q = q.filter(or_(ContentItem.title.ilike(like), ContentItem.excerpt.ilike(like)))
     total = q.count()
     items = (
-        q.order_by(ContentItem.updated_at.desc())
+        # id is a stable tiebreaker so equal sort keys don't shuffle across pages.
+        q.order_by(_order_clause(sort), ContentItem.id.desc())
         .offset((page - 1) * page_size)
         .limit(page_size)
         .all()

@@ -206,10 +206,14 @@ export const authApi = {
 }
 
 export const adminApi = {
-  list: (module: Module, params: { status?: string; search?: string; page?: number; page_size?: number } = {}) => {
+  list: (
+    module: Module,
+    params: { status?: string; search?: string; sort?: string; page?: number; page_size?: number } = {},
+  ) => {
     const qs = new URLSearchParams()
     if (params.status) qs.set('status', params.status)
     if (params.search) qs.set('search', params.search)
+    if (params.sort) qs.set('sort', params.sort)
     qs.set('page', String(params.page ?? 1))
     qs.set('page_size', String(params.page_size ?? 50))
     return request<ContentList>(`/api/admin/${module}?${qs}`)
