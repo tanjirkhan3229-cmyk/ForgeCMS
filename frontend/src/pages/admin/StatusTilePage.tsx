@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
+  ArrowDownUp,
   CalendarClock,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Copy,
@@ -30,6 +32,30 @@ const COPY: Record<Status, { title: string; subtitle: string }> = {
   scheduled: { title: 'Scheduled', subtitle: 'Will be published automatically at the scheduled time.' },
 }
 
+// Sort options per tab. The first entry is the default, and each tab leads with
+// the date it actually displays on its tiles (published_at / publish_at /
+// updated_at). Values match the backend's ?sort= allowlist; "-" means descending.
+const SORT_OPTIONS: Record<Status, { value: string; label: string }[]> = {
+  draft: [
+    { value: '-updated_at', label: 'Recently updated' },
+    { value: '-created_at', label: 'Newest created' },
+    { value: 'created_at', label: 'Oldest created' },
+    { value: 'title', label: 'Title A–Z' },
+  ],
+  published: [
+    { value: '-published_at', label: 'Newest published' },
+    { value: 'published_at', label: 'Oldest published' },
+    { value: '-updated_at', label: 'Recently updated' },
+    { value: 'title', label: 'Title A–Z' },
+  ],
+  scheduled: [
+    { value: 'publish_at', label: 'Soonest first' },
+    { value: '-publish_at', label: 'Furthest out' },
+    { value: '-updated_at', label: 'Recently updated' },
+    { value: 'title', label: 'Title A–Z' },
+  ],
+}
+
 export default function StatusTilePage({ status }: { status: Status }) {
   const { module } = useParams() as { module: Module }
   const navigate = useNavigate()
@@ -37,6 +63,7 @@ export default function StatusTilePage({ status }: { status: Status }) {
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
+  const [sort, setSort] = useState(SORT_OPTIONS[status][0].value)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -48,6 +75,7 @@ export default function StatusTilePage({ status }: { status: Status }) {
       const res = await adminApi.list(module, {
         status,
         search: search || undefined,
+        sort,
         page,
         page_size: PAGE_SIZE,
       })
@@ -60,12 +88,13 @@ export default function StatusTilePage({ status }: { status: Status }) {
     } finally {
       setLoading(false)
     }
-  }, [module, status, search, page])
+  }, [module, status, search, sort, page])
 
   useEffect(() => {
     setLoading(true)
     setPage(1)
     setSearch('')
+    setSort(SORT_OPTIONS[status][0].value)
   }, [module, status])
 
   useEffect(() => {
@@ -103,6 +132,25 @@ export default function StatusTilePage({ status }: { status: Status }) {
               placeholder="Search…"
               className="w-full rounded-lg border border-zinc-200 bg-white py-2 pr-3 pl-9 text-sm outline-none focus:border-zinc-400"
             />
+          </div>
+          <div className="relative">
+            <ArrowDownUp size={15} className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-zinc-400" />
+            <select
+              value={sort}
+              onChange={(e) => {
+                setSort(e.target.value)
+                setPage(1)
+              }}
+              aria-label="Sort by"
+              className="cursor-pointer appearance-none rounded-lg border border-zinc-200 bg-white py-2 pr-9 pl-9 text-sm text-zinc-700 outline-none focus:border-zinc-400"
+            >
+              {SORT_OPTIONS[status].map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+            <ChevronDown size={15} className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-zinc-400" />
           </div>
           <Link
             to={`/admin/${module}/new`}
